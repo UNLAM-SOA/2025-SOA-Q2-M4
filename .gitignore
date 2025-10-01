@@ -13,6 +13,22 @@ captures/
 .externalNativeBuild/
 .cxx/
 output.json
+*.iml
+*.gradle
+Android/local.properties
+Android/.idea/caches
+Android/.idea/libraries
+Android/.idea/modules.xml
+Android/.idea/workspace.xml
+Android/.idea/navEditor.xml
+Android/.idea/assetWizardSettings.xml
+Android/.DS_Store
+Android/build
+Android/captures
+Android/*.externalNativeBuild
+Android/*.cxx
+Android/*local.properties
+
 
 # IntelliJ
 *.iml
