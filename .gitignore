@@ -25,9 +25,9 @@ Android/.idea/assetWizardSettings.xml
 Android/.DS_Store
 Android/build
 Android/captures
-Android/*.externalNativeBuild
-Android/*.cxx
-Android/*local.properties
+Android/.externalNativeBuild
+Android/.cxx
+Android/local.properties
 
 
 # IntelliJ
