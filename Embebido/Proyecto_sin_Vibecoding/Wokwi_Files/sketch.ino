@@ -1,10 +1,10 @@
-#include <ESP32Servo.h>
-#include <HX711.h>
-#include <freertos/FreeRTOS.h>
-#include <freertos/task.h>
-#include <WiFi.h>
-#include "PubSubClient.h"
-#include "ArduinoJson.h"
+#include <ESP32Servo.h> // by Kevin Harrington and John K. Bennett
+#include <HX711.h> // by Rob Tillaart <rob.tillaart@gmail.com
+#include <freertos/FreeRTOS.h> // native from arduino
+#include <freertos/task.h> // native from arduino
+#include <WiFi.h> // native from arduino
+#include "PubSubClient.h" //by Nick O' Leary <nick.oleeary@gmail.com>
+#include "ArduinoJson.h" // by benoit blanchon <blog.benoitblanchon.fr>
 
 #define LedPinWater 22 // LedPinWater se enciende si falta agua (potenciometro)
 #define LedPinFood 23 // LedPinFood se enciende si falta comida (ultrasonido)
