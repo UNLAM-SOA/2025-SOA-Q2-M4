@@ -3,3 +3,6 @@
 
 ESP32Servo
 HX711
+PubSubClient
+WiFi
+ArduinoJson

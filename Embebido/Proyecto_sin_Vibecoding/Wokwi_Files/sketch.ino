@@ -31,8 +31,9 @@
 
 #define WeightThreshold 0.120 //120g
 
-#define TAM_PILA 1024 //Tamano de pila de xTask
-#define TAM_COLA 8 //Tamano de cola xQueue
+#define TAM_PILA_SERVO 2048
+#define TAM_PILA_MQTT 4096
+#define TAM_COLA 4 //Tamano de cola xQueue
 
 #define SECRET_SSID "Wokwi-GUEST"
 #define SECRET_PSW ""
@@ -89,6 +90,7 @@ WiFiClient espClient;
 PubSubClient client(espClient);
 
 static TaskHandle_t ServoHandler = NULL;
+static TaskHandle_t MqttHandler = NULL;
 static QueueHandle_t ServoQueue;
 
 // Servo se mueve si el peso baja de 1 kg (empieza a servir comida)
@@ -108,6 +110,53 @@ static void concurrentServoTask(void *parameters)
     }
 }
 
+static void concurrentSendByMqtt(void *parameters)
+{
+    JsonDocument logs;
+    char message[128];
+    int value;
+
+    while(1)
+    {
+        if (WiFi.status() == WL_CONNECTED)
+        {
+            // Loop hasta que estemos conectados
+            while (!client.loop())
+            {
+                Serial.print("Connecting to MQTT... ");
+
+                // Intentamos conectar
+                if (client.connect("ESP32Client", NULL, "Wokwi/test")) 
+                {
+                    Serial.println("Connected");
+                }
+                else 
+                {
+                    Serial.println(" Failed, retring in 1 second");
+                }
+            }
+
+            if (client.connected())
+            {
+                // Armo el mensaje de Logs
+                logs["Weight (g)"] = weight;
+                logs["PotValue"] = potValue;
+                logs["Distance (cm)"] = objectDistance;
+                logs["State"] = currentState;
+                logs["Event"] = currentEvent;
+                serializeJson(logs, message);
+
+                // Envia mensaje al topic
+                client.publish("Wokwi/test", message);
+                Serial.println(message);
+            }
+        }
+
+        vTaskDelay(TIMER_LOGS);
+    }
+}
+
+/*
 bool timestampEnabler(unsigned long* lastTimestamp)
 {
     if ((millis() - *lastTimestamp) >= TIMER_LOGS)
@@ -117,6 +166,7 @@ bool timestampEnabler(unsigned long* lastTimestamp)
     }
     return false;
 }
+*/
 
 long readUltrasonicSensor()
 {
@@ -150,46 +200,6 @@ void performCalculations()
     objectDistance = 0.01723 * objectTime;
 }
 
-void sendByMqtt(JsonDocument json)
-{
-    char message[128];
-
-    // Loop hasta que estemos conectados
-    while (!client.loop())
-    {
-        Serial.print("Connecting to MQTT...");
-
-        // Intentamos conectar
-        if (client.connect("ESP32Client", NULL, "Wokwi/test")) 
-        {
-            Serial.println(" Connected");
-            
-            // Envia mensaje al topic
-            serializeJson(json, message);
-            client.publish("Wokwi/test", message);
-            Serial.print("Mensaje publicado, ");
-            Serial.println(client.state());
-        }
-        else 
-        {
-            Serial.println(" Failed, retring in 1 second");
-        }
-    }
-}
-
-void showLogs()
-{
-    JsonDocument logs;
-
-    logs["Weight (g)"] = weight;
-    logs["PotValue"] = potValue;
-    logs["Distance (cm)"] = objectDistance;
-    logs["State"] = currentState;
-    logs["Event"] = currentEvent;
-
-    sendByMqtt(logs);
-}
-
 void callback(char* topic, byte* message, unsigned int length) 
 {
     //Do nothing
@@ -203,7 +213,7 @@ void initSignal()
     Serial.println("System starting...");
 
     WiFi.begin(ssid, password);
-    Serial.print("Connecting to WiFi...");
+    Serial.print("Connecting to WiFi... ");
 
     while (WiFi.status() != WL_CONNECTED && counter <= 6) 
     {
@@ -229,6 +239,9 @@ void initSignal()
     // Apago los leds antes de finalizar el estado
     ledcWrite(LedPinWater, ledLow);
     ledcWrite(LedPinFood, ledLow);
+
+    // Creo la tarea de MqTT aca porque necesita internet
+    xTaskCreate(concurrentSendByMqtt,"concurrent_mqtt_task",TAM_PILA_MQTT, NULL, 1, &MqttHandler);
     
     currentState = SENSING;
 }
@@ -358,12 +371,6 @@ void stateMachine()
 {   
     // Obtencion del evento actual en base a sensores
     getEvent();
-
-    // Logs periodicos
-    if (timestampEnabler(&timeSinceBoot))
-    {
-        showLogs();
-    }
     
     switch (currentState)
     {
@@ -424,9 +431,9 @@ void setup()
     ledcAttachChannel(LedPinWater, ledFrequency, ledResolution, LedPinWaterChannel);
     ledcAttachChannel(LedPinFood, ledFrequency, ledResolution, LedPinFoodChannel);
 
-    xTaskCreate(concurrentServoTask,"concurrent_servo_task",TAM_PILA, NULL, 0, &ServoHandler);
+    xTaskCreate(concurrentServoTask,"concurrent_servo_task",TAM_PILA_SERVO, NULL, 1, &ServoHandler);
     ServoQueue = xQueueCreate(TAM_COLA, sizeof(int));
-
+    
     client.setServer(mqtt_server, 1883);
     client.setCallback(callback);
 }
