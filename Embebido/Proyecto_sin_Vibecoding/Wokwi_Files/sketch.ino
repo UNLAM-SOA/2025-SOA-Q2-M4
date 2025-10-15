@@ -29,14 +29,14 @@
 #define TIMER_INIT 300 //300ms
 #define TIMER_LOGS 1500 //1500ms
 
-#define WeightThreshold 0.120 //120g
+#define WeightThreshold 15 //120g
 
 #define TAM_PILA_SERVO 2048
 #define TAM_PILA_MQTT 4096
 #define TAM_COLA 4 //Tamano de cola xQueue
 
-#define SECRET_SSID "Wokwi-GUEST"
-#define SECRET_PSW ""
+#define SECRET_SSID "SO Avanzados"
+#define SECRET_PSW "SOA.2019"
 
 enum States
 {
@@ -56,12 +56,12 @@ enum Events
     NO_EVENT = 7,
 };
 
-int const ServoLowWeightPosition = 90;
+int const ServoLowWeightPosition = 180;
 int const ServoNormalPosition = 0;
 
 const char* ssid = SECRET_SSID;
 const char* password = SECRET_PSW;
-const char* mqtt_server = "broker.mqttdashboard.com";
+const char* mqtt_server = "broker.emqx.io";
 
 float const calibration_factor = 420.0;
 
@@ -118,10 +118,18 @@ static void concurrentSendByMqtt(void *parameters)
 
     while(1)
     {
-        if (WiFi.status() == WL_CONNECTED)
-        {
+        /*if (WiFi.status() == WL_CONNECTED)
+        {*/  
+            // Armo el mensaje de Logs
+            logs["Weight (g)"] = weight;
+            logs["PotValue"] = potValue;
+            logs["Distance (cm)"] = objectDistance;
+            logs["State"] = currentState;
+            logs["Event"] = currentEvent;
+            serializeJson(logs, message);
+
             // Loop hasta que estemos conectados
-            while (!client.loop())
+            /*while (!client.loop())
             {
                 Serial.print("Connecting to MQTT... ");
 
@@ -138,19 +146,11 @@ static void concurrentSendByMqtt(void *parameters)
 
             if (client.connected())
             {
-                // Armo el mensaje de Logs
-                logs["Weight (g)"] = weight;
-                logs["PotValue"] = potValue;
-                logs["Distance (cm)"] = objectDistance;
-                logs["State"] = currentState;
-                logs["Event"] = currentEvent;
-                serializeJson(logs, message);
-
                 // Envia mensaje al topic
-                client.publish("Wokwi/test", message);
+                client.publish("Wokwi/test", message);*/
                 Serial.println(message);
-            }
-        }
+            /*}
+        }*/
 
         vTaskDelay(TIMER_LOGS);
     }
@@ -414,9 +414,9 @@ void setup()
 
     loadCell.set_scale(calibration_factor);
 
-    Serial.println("Remove all weight from the load cell and press any key to tare...");
-    while (!Serial.available()) { }
-    Serial.read();
+    //Serial.println("Remove all weight from the load cell and press any key to tare...");
+    //while (!Serial.available()) { }
+    //Serial.read();
     loadCell.tare(10);
 
     Serial.println("Load cell tared and ready!");
@@ -431,9 +431,9 @@ void setup()
     ledcAttachChannel(LedPinWater, ledFrequency, ledResolution, LedPinWaterChannel);
     ledcAttachChannel(LedPinFood, ledFrequency, ledResolution, LedPinFoodChannel);
 
-    xTaskCreate(concurrentServoTask,"concurrent_servo_task",TAM_PILA_SERVO, NULL, 1, &ServoHandler);
     ServoQueue = xQueueCreate(TAM_COLA, sizeof(int));
-    
+    xTaskCreate(concurrentServoTask,"concurrent_servo_task",TAM_PILA_SERVO, NULL, 1, &ServoHandler);
+
     client.setServer(mqtt_server, 1883);
     client.setCallback(callback);
 }
