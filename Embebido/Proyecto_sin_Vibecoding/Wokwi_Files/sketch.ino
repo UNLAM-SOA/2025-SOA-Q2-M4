@@ -25,9 +25,9 @@
 #define PotThreshold 2048
 #define DistanceThreshold 20
 
-#define TIMER_CELL 1000 //1000ms = 1s
+#define TIMER_CELL 550 //550ms 
 #define TIMER_INIT 300 //300ms
-#define TIMER_LOGS 1500 //1500ms
+#define TIMER_LOGS 1000 //1000ms = 1s
 
 #define WeightThreshold 2 //120g
 
@@ -133,11 +133,17 @@ static void concurrentSendByMqtt(void *parameters)
                     serializeJson(logs, message);
 
                     // Envia mensaje al topic
-                    client.publish("Wokwi/test", message);
-                    Serial.println(message);
+                    if (client.publish("Wokwi/test", message))
+                    {
+                        Serial.print("log: ");
+                        Serial.println(message);
+                        vTaskDelay(TIMER_LOGS);
+                    }
                     break;
 
                 case false:
+                    Serial.println("MQTT Connection Lost.. ");                    
+
                     // Loop hasta que estemos conectados
                     while (!client.connected())
                     {
@@ -150,28 +156,15 @@ static void concurrentSendByMqtt(void *parameters)
                         }
                         else
                         {
-                            Serial.println("Failed, retring in 1 second");
+                            Serial.println("Connection Failed");
+                            vTaskDelay(TIMER_LOGS);
                         }
                     }
                     break;
             }
         }
-
-        vTaskDelay(TIMER_LOGS);
     }
 }
-
-/*
-bool timestampEnabler(unsigned long* lastTimestamp)
-{
-    if ((millis() - *lastTimestamp) >= TIMER_LOGS)
-    {
-        *lastTimestamp = millis();
-        return true;
-    }
-    return false;
-}
-*/
 
 long readUltrasonicSensor()
 {
@@ -246,8 +239,8 @@ void initSignal()
     ledcWrite(LedPinFood, ledLow);
 
     // Creo la tarea de MqTT aca porque necesita internet
-    xTaskCreate(concurrentSendByMqtt,"concurrent_mqtt_task",TAM_PILA_MQTT, NULL, 1, &MqttHandler);
-    
+    xTaskCreatePinnedToCore(concurrentSendByMqtt,"concurrent_mqtt_task",TAM_PILA_MQTT, NULL, 1, &MqttHandler, 1);
+
     currentState = SENSING;
 }
 
@@ -419,9 +412,6 @@ void setup()
 
     loadCell.set_scale(calibration_factor);
 
-    //Serial.println("Remove all weight from the load cell and press any key to tare...");
-    //while (!Serial.available()) { }
-    //Serial.read();
     loadCell.tare(10);
 
     Serial.println("Load cell tared and ready!");
@@ -437,7 +427,7 @@ void setup()
     ledcAttachChannel(LedPinFood, ledFrequency, ledResolution, LedPinFoodChannel);
 
     ServoQueue = xQueueCreate(TAM_COLA, sizeof(int));
-    xTaskCreate(concurrentServoTask,"concurrent_servo_task",TAM_PILA_SERVO, NULL, 1, &ServoHandler);
+    xTaskCreatePinnedToCore(concurrentServoTask,"concurrent_servo_task",TAM_PILA_SERVO, NULL, 2, &ServoHandler, 0);
 
     client.setServer(mqtt_server, mqtt_port);
     client.setCallback(callback);
