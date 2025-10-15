@@ -29,14 +29,14 @@
 #define TIMER_INIT 300 //300ms
 #define TIMER_LOGS 1500 //1500ms
 
-#define WeightThreshold 15 //120g
+#define WeightThreshold 2 //120g
 
 #define TAM_PILA_SERVO 2048
 #define TAM_PILA_MQTT 4096
 #define TAM_COLA 4 //Tamano de cola xQueue
 
-#define SECRET_SSID "SO Avanzados"
-#define SECRET_PSW "SOA.2019"
+#define SECRET_SSID "Wokwi-GUEST" //"SO Avanzados"
+#define SECRET_PSW "" //"SOA.2019"
 
 enum States
 {
@@ -58,10 +58,11 @@ enum Events
 
 int const ServoLowWeightPosition = 180;
 int const ServoNormalPosition = 0;
+int const mqtt_port = 1883;
 
 const char* ssid = SECRET_SSID;
 const char* password = SECRET_PSW;
-const char* mqtt_server = "broker.emqx.io";
+const char* mqtt_server = "broker.hivemq.com";
 
 float const calibration_factor = 420.0;
 
@@ -118,39 +119,43 @@ static void concurrentSendByMqtt(void *parameters)
 
     while(1)
     {
-        /*if (WiFi.status() == WL_CONNECTED)
-        {*/  
-            // Armo el mensaje de Logs
-            logs["Weight (g)"] = weight;
-            logs["PotValue"] = potValue;
-            logs["Distance (cm)"] = objectDistance;
-            logs["State"] = currentState;
-            logs["Event"] = currentEvent;
-            serializeJson(logs, message);
-
-            // Loop hasta que estemos conectados
-            /*while (!client.loop())
+        if (WiFi.status() == WL_CONNECTED)
+        {       
+            switch(client.loop())
             {
-                Serial.print("Connecting to MQTT... ");
+                case true:
+                    // Armo el mensaje de Logs
+                    logs["Weight (g)"] = weight;
+                    logs["PotValue"] = potValue;
+                    logs["Distance (cm)"] = objectDistance;
+                    logs["State"] = currentState;
+                    logs["Event"] = currentEvent;
+                    serializeJson(logs, message);
 
-                // Intentamos conectar
-                if (client.connect("ESP32Client", NULL, "Wokwi/test")) 
-                {
-                    Serial.println("Connected");
-                }
-                else 
-                {
-                    Serial.println(" Failed, retring in 1 second");
-                }
+                    // Envia mensaje al topic
+                    client.publish("Wokwi/test", message);
+                    Serial.println(message);
+                    break;
+
+                case false:
+                    // Loop hasta que estemos conectados
+                    while (!client.connected())
+                    {
+                        Serial.print("Connecting to MQTT... ");
+
+                        // Intentamos conectar
+                        if (client.connect("ESP32Client", NULL, "Wokwi/test")) 
+                        {
+                            Serial.println("Connected");
+                        }
+                        else
+                        {
+                            Serial.println("Failed, retring in 1 second");
+                        }
+                    }
+                    break;
             }
-
-            if (client.connected())
-            {
-                // Envia mensaje al topic
-                client.publish("Wokwi/test", message);*/
-                Serial.println(message);
-            /*}
-        }*/
+        }
 
         vTaskDelay(TIMER_LOGS);
     }
@@ -401,7 +406,7 @@ void setup()
 {
     Serial.begin(9600);
 
-    servo1.attach(ServoPin, 500, 2500);
+    servo1.attach(ServoPin, 600, 2400);
     servo1.write(ServoNormalPosition);
 
     loadCell.begin(LoadCellDTPin, LoadCellSCKPin);
@@ -434,7 +439,7 @@ void setup()
     ServoQueue = xQueueCreate(TAM_COLA, sizeof(int));
     xTaskCreate(concurrentServoTask,"concurrent_servo_task",TAM_PILA_SERVO, NULL, 1, &ServoHandler);
 
-    client.setServer(mqtt_server, 1883);
+    client.setServer(mqtt_server, mqtt_port);
     client.setCallback(callback);
 }
 
