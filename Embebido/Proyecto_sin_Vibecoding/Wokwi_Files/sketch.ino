@@ -35,9 +35,6 @@
 #define TAM_PILA_MQTT 4096
 #define TAM_COLA 4 //Tamano de cola xQueue
 
-#define SECRET_SSID "Wokwi-GUEST" //"SO Avanzados"
-#define SECRET_PSW "" //"SOA.2019"
-
 enum States
 {
     INIT = 1,
@@ -60,9 +57,10 @@ int const ServoLowWeightPosition = 180;
 int const ServoNormalPosition = 0;
 int const mqtt_port = 1883;
 
-const char* ssid = SECRET_SSID;
-const char* password = SECRET_PSW;
+const char* ssid = "Wokwi-GUEST"; //"SO Avanzados"
+const char* password = ""; //"SOA.2019"
 const char* mqtt_server = "broker.hivemq.com";
+const char* topicMqtt = "Wokwi/test";
 
 float const calibration_factor = 420.0;
 
@@ -100,14 +98,10 @@ static void concurrentServoTask(void *parameters)
 {
     int value;
 
-    while(1)
+    while(xQueueReceive(ServoQueue, &value, portMAX_DELAY) == pdPASS)
     {   
-        // Cuando recive algo en al cola, ejecuta
-        if (xQueueReceive(ServoQueue, &value, portMAX_DELAY) == pdPASS)
-        {               
-            // Resuelve tarea del servo
-            servo1.write(value);
-        }
+        // Resuelve tarea del servo
+        servo1.write(value);
     }
 }
 
@@ -116,28 +110,34 @@ static void concurrentSendByMqtt(void *parameters)
     JsonDocument logs;
     char message[128];
     int value;
+    unsigned long timeLogs = timeSinceBoot;
 
     while(1)
     {
         if (WiFi.status() == WL_CONNECTED)
-        {       
+        {
             switch(client.loop())
             {
                 case true:
-                    // Armo el mensaje de Logs
-                    logs["Weight (g)"] = weight;
-                    logs["PotValue"] = potValue;
-                    logs["Distance (cm)"] = objectDistance;
-                    logs["State"] = currentState;
-                    logs["Event"] = currentEvent;
-                    serializeJson(logs, message);
-
-                    // Envia mensaje al topic
-                    if (client.publish("Wokwi/test", message))
+                    if ((millis() - timeLogs) >= TIMER_LOGS)
                     {
-                        Serial.print("log: ");
-                        Serial.println(message);
-                        vTaskDelay(TIMER_LOGS);
+                        timeLogs = millis();
+
+                        // Armo el mensaje de Logs
+                        logs["TimeLog (s)"] = (int) timeLogs / 1000;
+                        logs["Weight (g)"] = weight;
+                        logs["PotValue"] = potValue;
+                        logs["Distance (cm)"] = objectDistance;
+                        logs["State"] = currentState;
+                        logs["Event"] = currentEvent;
+                        serializeJson(logs, message);
+
+                        // Envia mensaje al topic
+                        if (client.publish("Wokwi/test", message))
+                        {
+                            Serial.print("log: ");
+                            Serial.println(message);
+                        }
                     }
                     break;
 
@@ -150,14 +150,13 @@ static void concurrentSendByMqtt(void *parameters)
                         Serial.print("Connecting to MQTT... ");
 
                         // Intentamos conectar
-                        if (client.connect("ESP32Client", NULL, "Wokwi/test")) 
+                        if (client.connect("ESP32Client", NULL, topicMqtt)) 
                         {
                             Serial.println("Connected");
                         }
                         else
                         {
                             Serial.println("Connection Failed");
-                            vTaskDelay(TIMER_LOGS);
                         }
                     }
                     break;
@@ -427,7 +426,7 @@ void setup()
     ledcAttachChannel(LedPinFood, ledFrequency, ledResolution, LedPinFoodChannel);
 
     ServoQueue = xQueueCreate(TAM_COLA, sizeof(int));
-    xTaskCreatePinnedToCore(concurrentServoTask,"concurrent_servo_task",TAM_PILA_SERVO, NULL, 2, &ServoHandler, 0);
+    xTaskCreatePinnedToCore(concurrentServoTask,"concurrent_servo_task",TAM_PILA_SERVO, NULL, 0, &ServoHandler, 0);
 
     client.setServer(mqtt_server, mqtt_port);
     client.setCallback(callback);
