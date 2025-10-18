@@ -8,12 +8,115 @@
     tools:context=".MainActivity">
 
     <TextView
+        android:id="@+id/textView13"
+        android:layout_width="200dp"
+        android:layout_height="wrap_content"
+        android:text="TextView"
+        tools:layout_editor_absoluteX="133dp"
+        tools:layout_editor_absoluteY="337dp" />
+
+    <TextView
+        android:id="@+id/textView12"
+        android:layout_width="200dp"
+        android:layout_height="wrap_content"
+        android:text="TextView"
+        tools:layout_editor_absoluteX="133dp"
+        tools:layout_editor_absoluteY="318dp" />
+
+    <TextView
+        android:id="@+id/textView5"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Hello World!"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        android:text="TextView"
+        tools:layout_editor_absoluteX="75dp"
+        tools:layout_editor_absoluteY="337dp" />
+
+    <TextView
+        android:id="@+id/textView16"
+        android:layout_width="200dp"
+        android:layout_height="wrap_content"
+        android:text="TextView"
+        tools:layout_editor_absoluteX="133dp"
+        tools:layout_editor_absoluteY="394dp" />
+
+    <Button
+        android:id="@+id/button"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Button"
+        tools:layout_editor_absoluteX="160dp"
+        tools:layout_editor_absoluteY="468dp" />
+
+    <TextView
+        android:id="@+id/textView7"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="TextView"
+        tools:layout_editor_absoluteX="75dp"
+        tools:layout_editor_absoluteY="356dp" />
+
+    <TextView
+        android:id="@+id/textView9"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="TextView"
+        tools:layout_editor_absoluteX="75dp"
+        tools:layout_editor_absoluteY="394dp" />
+
+    <TextView
+        android:id="@+id/textView14"
+        android:layout_width="200dp"
+        android:layout_height="wrap_content"
+        android:text="TextView"
+        tools:layout_editor_absoluteX="133dp"
+        tools:layout_editor_absoluteY="356dp" />
+
+    <TextView
+        android:id="@+id/textView15"
+        android:layout_width="200dp"
+        android:layout_height="wrap_content"
+        android:text="TextView"
+        tools:layout_editor_absoluteX="133dp"
+        tools:layout_editor_absoluteY="375dp" />
+
+    <TextView
+        android:id="@+id/textView17"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="TextView"
+        tools:layout_editor_absoluteX="176dp"
+        tools:layout_editor_absoluteY="245dp" />
+
+    <TextView
+        android:id="@+id/textView8"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="TextView"
+        tools:layout_editor_absoluteX="75dp"
+        tools:layout_editor_absoluteY="375dp" />
+
+    <TextView
+        android:id="@+id/textView4"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="TextView"
+        tools:layout_editor_absoluteX="75dp"
+        tools:layout_editor_absoluteY="318dp" />
+
+    <TextView
+        android:id="@+id/textView11"
+        android:layout_width="200dp"
+        android:layout_height="wrap_content"
+        android:text="TextView"
+        tools:layout_editor_absoluteX="133dp"
+        tools:layout_editor_absoluteY="299dp" />
+
+    <TextView
+        android:id="@+id/textView3"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="TextView"
+        tools:layout_editor_absoluteX="75dp"
+        tools:layout_editor_absoluteY="299dp" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>
