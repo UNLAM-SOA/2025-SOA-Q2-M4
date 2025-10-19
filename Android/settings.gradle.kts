@@ -19,5 +19,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "SISOPS_GRUPO_M4"
+rootProject.name = "AviFeeder"
 include(":app")
