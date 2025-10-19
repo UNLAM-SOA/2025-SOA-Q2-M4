@@ -3,12 +3,14 @@ plugins {
 }
 
 android {
-    namespace = "com.example.sisops_grupo_m4"
-    compileSdk = 36
+    namespace = "com.example.avifeeder"
+    compileSdk {
+        version = release(36)
+    }
 
     defaultConfig {
-        applicationId = "com.example.sisops_grupo_m4"
-        minSdk = 24
+        applicationId = "com.example.avifeeder"
+        minSdk = 28
         targetSdk = 36
         versionCode = 1
         versionName = "1.0"
@@ -32,12 +34,11 @@ android {
 }
 
 dependencies {
-
     implementation(libs.appcompat)
     implementation(libs.material)
     implementation(libs.activity)
     implementation(libs.constraintlayout)
-    implementation(libs.fragment)
+    implementation(libs.cardview)
     testImplementation(libs.junit)
     androidTestImplementation(libs.ext.junit)
     androidTestImplementation(libs.espresso.core)
