@@ -59,6 +59,8 @@ public class MainActivity extends AppCompatActivity implements NetworkChangeRece
         // Chequeo inmediato al reanudar (opcional: para mostrar banner si ya está desconectado)
         boolean connected = NetworkUtils.isInternetAvailable(this);
         onNetworkChange(connected);
+
+        // Mqtt
     }
 
     @Override
