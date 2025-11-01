@@ -60,7 +60,7 @@ int const mqtt_port = 1883;
 const char* ssid = "Wokwi-GUEST"; //"SO Avanzados"
 const char* password = ""; //"SOA.2019"
 const char* mqtt_server = "broker.hivemq.com";
-const char* topicMqtt = "Wokwi/test";
+const char* topicMqtt = "AviFeeder/Datos";
 
 float const calibration_factor = 420.0;
 
@@ -133,7 +133,7 @@ static void concurrentSendByMqtt(void *parameters)
                         serializeJson(logs, message);
 
                         // Envia mensaje al topic
-                        if (client.publish("Wokwi/test", message))
+                        if (client.publish(topicMqtt, message))
                         {
                             Serial.print("log: ");
                             Serial.println(message);
@@ -398,7 +398,7 @@ void setup()
 {
     Serial.begin(9600);
 
-    servo1.attach(ServoPin, 600, 1200);
+    servo1.attach(ServoPin, 600, 2400);
     servo1.write(ServoNormalPosition);
 
     loadCell.begin(LoadCellDTPin, LoadCellSCKPin);
