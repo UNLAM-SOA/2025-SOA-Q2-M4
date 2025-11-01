@@ -398,7 +398,7 @@ void setup()
 {
     Serial.begin(9600);
 
-    servo1.attach(ServoPin, 600, 2400);
+    servo1.attach(ServoPin, 600, 1200);
     servo1.write(ServoNormalPosition);
 
     loadCell.begin(LoadCellDTPin, LoadCellSCKPin);
