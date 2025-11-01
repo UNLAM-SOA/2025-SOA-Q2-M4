@@ -10,6 +10,7 @@
     <string name="ultima_actu_valor_label">HH:MM:SS hs</string>
 
     <color name="fondo_personalizado">#f4f7e4</color>
+    <string name="mqtt_message_broadcast">com.example.avifeeder.MQTT_MESSAGE</string>
 
     <string name="dispensador_label">Dispensador de Semillas</string>
     <string name="ledComida_label">Led - Nivel de comida Bajo</string>

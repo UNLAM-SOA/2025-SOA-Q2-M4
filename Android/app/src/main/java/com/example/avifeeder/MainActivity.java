@@ -1,98 +1,121 @@
 package com.example.avifeeder;
 
+import android.annotation.SuppressLint;
+import android.content.BroadcastReceiver;
+import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
-import android.net.ConnectivityManager;
+import android.os.Build;
 import android.os.Bundle;
-import android.view.View;
+import android.util.Log;
 import android.widget.ImageButton;
+import android.widget.TextView;
 
-import androidx.activity.EdgeToEdge;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
+import androidx.core.graphics.Insets;
 
-import com.google.android.material.snackbar.Snackbar;
+import org.json.JSONException;
+import org.json.JSONObject;
 
-public class MainActivity extends AppCompatActivity implements NetworkChangeReceiver.NetworkChangeListener {
+public class MainActivity extends AppCompatActivity {
 
-    private NetworkChangeReceiver networkReceiver;
-    private Snackbar noInternetSnackbar;
+    private static final String TAG = "MainActivity";
+    private BroadcastReceiver mqttReceiver;
+    private TextView textViewNivelAguaValor;
+    private TextView textViewNivelComidaValor;
+    private TextView textViewActualizacionValor;
 
+    @SuppressLint("UnspecifiedRegisterReceiverFlag")
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        EdgeToEdge.enable(this);
         setContentView(R.layout.activity_main);
 
+        // Referencias UI
+        textViewNivelAguaValor = findViewById(R.id.textViewNivelAguaValor);
+        textViewNivelComidaValor = findViewById(R.id.textViewNivelComidaValor);
+        textViewActualizacionValor = findViewById(R.id.textViewActualizacionValor);
+
+        // Botón para pasar a ActuadoresActivity
+        ImageButton btnMas = findViewById(R.id.btnMas);
+        btnMas.setOnClickListener(v -> {
+            Intent intent = new Intent(MainActivity.this, ActuadoresActivity.class);
+            startActivity(intent);
+        });
+
+        // Ajuste EdgeToEdge (opcional)
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main), (v, insets) -> {
             Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
             return insets;
         });
 
-        //Botón "más" para pasar a ActuadoresActivity
-        ImageButton btnMas = findViewById(R.id.btnMas);
-        btnMas.setOnClickListener(new View.OnClickListener() {
+        // Inicializar el BroadcastReceiver antes de iniciar el servicio
+        mqttReceiver = new BroadcastReceiver() {
             @Override
-            public void onClick(View v) {
-                Intent intent = new Intent(MainActivity.this, ActuadoresActivity.class);
-                startActivity(intent);
+            public void onReceive(Context context, Intent intent) {
+                String message = intent.getStringExtra(MqttService.MQTT_MESSAGE_KEY);
+                Log.d(TAG, "Mensaje MQTT recibido. Actualizando UI");
+                if (message != null) {
+                    updateUIWithMqttData(message);
+                }
             }
-        });
+        };
 
-        // Preparamos Snackbar (no se muestra hasta que haya desconexión)
-        noInternetSnackbar = Snackbar.make(findViewById(android.R.id.content),
-                "⚠️ Sin conexión a Internet",
-                Snackbar.LENGTH_INDEFINITE);
-    }
-
-    @Override
-    protected void onResume() {
-        super.onResume();
-        // Registrar el BroadcastReceiver dinámicamente
-        networkReceiver = new NetworkChangeReceiver(this);
-        IntentFilter filter = new IntentFilter(ConnectivityManager.CONNECTIVITY_ACTION);
-        registerReceiver(networkReceiver, filter);
-
-        // Chequeo inmediato al reanudar (opcional: para mostrar banner si ya está desconectado)
-        boolean connected = NetworkUtils.isInternetAvailable(this);
-        onNetworkChange(connected);
-
-        // Mqtt
-    }
-
-    @Override
-    protected void onPause() {
-        super.onPause();
-        // Anular registro para evitar fugas
-        try {
-            unregisterReceiver(networkReceiver);
-        } catch (IllegalArgumentException e) {
-            // por si no está registrado
-            e.printStackTrace();
+        // Registrar el receiver **en onCreate** para no perder mensajes
+        String mqttBroadcastAction = getString(R.string.mqtt_message_broadcast);
+        IntentFilter filter = new IntentFilter(mqttBroadcastAction);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(mqttReceiver, filter, Context.RECEIVER_NOT_EXPORTED);
         }
-        networkReceiver = null;
+        else
+        {
+            registerReceiver(mqttReceiver, filter);
+        }
+
+        // Iniciar servicio MQTT
+        Intent mqttServiceIntent = new Intent(this, MqttService.class);
+        startService(mqttServiceIntent);
     }
 
     @Override
-    public void onNetworkChange(boolean isConnected) {
-        // Este metodo se ejecuta en el hilo principal (onReceive del BroadcastReceiver)
-        if (!isConnected) {
-            // Mostrar snackbar indefinido hasta que vuelva la conexión
-            if (noInternetSnackbar != null && !noInternetSnackbar.isShown()) {
-                noInternetSnackbar.show();
-            }
-        } else {
-            // Si había un snackbar de sin internet, lo ocultamos
-            if (noInternetSnackbar != null && noInternetSnackbar.isShown()) {
-                noInternetSnackbar.dismiss();
-            }
-            // Mensaje corto indicando reconexión (opcional)
-            //Snackbar.make(findViewById(android.R.id.content),
-            //        "✅ Conectado a Internet",
-            //        Snackbar.LENGTH_SHORT).show();
+    protected void onDestroy() {
+        super.onDestroy();
+        // Desregistrar receiver
+        unregisterReceiver(mqttReceiver);
+    }
+
+    private void updateUIWithMqttData(String message) {
+        try {
+            JSONObject json = new JSONObject(message);
+
+            int potValue = json.optInt("PotValue", 0);
+            int distance = json.optInt("Distance (cm)", 0);
+            int timeLog  = json.optInt("TimeLog (s)", 0);
+
+            // Evaluación para 'PotValue'
+            String potValueStatus = (potValue >= 2048) ? "SUFICIENTE" : "INSUFICIENTE";
+
+            // Evaluación para 'Distance'
+            String distanceStatus = (distance < 20) ? "SUFICIENTE" : "INSUFICIENTE";
+
+            // Formateo de 'TimeLog' en HH:MM:SS
+            int hours = timeLog / 3600;
+            int minutes = (timeLog % 3600) / 60;
+            int seconds = timeLog % 60;
+            @SuppressLint("DefaultLocale") String timeFormatted = String.format("%02d:%02d:%02d", hours, minutes, seconds); // Formato HH:MM:SS
+
+            // Actualizar la UI en el hilo principal
+            runOnUiThread(() -> {
+                textViewNivelAguaValor.setText(potValueStatus);
+                textViewNivelComidaValor.setText(distanceStatus);
+                textViewActualizacionValor.setText(timeFormatted);
+            });
+
+        } catch (JSONException e) {
+            Log.e(TAG, "Error parseando JSON: " + e.getMessage());
         }
     }
 }
