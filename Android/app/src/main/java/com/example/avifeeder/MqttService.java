@@ -2,6 +2,7 @@ package com.example.avifeeder;
 
 import android.app.Service;
 import android.content.Intent;
+import android.os.Binder;
 import android.os.Handler;
 import android.os.IBinder;
 import android.util.Log;
@@ -26,6 +27,7 @@ public class MqttService extends Service {
     private final Handler handler = new Handler();
     private boolean isReconnecting = false;
     private static final int RECONNECT_DELAY_MS = 5000; // 5 segundos
+    private final IBinder binder = new LocalBinder();
 
     @Override
     public void onCreate() {
@@ -132,9 +134,15 @@ public class MqttService extends Service {
         super.onDestroy();
     }
 
+    public class LocalBinder extends Binder {
+        public MqttService getService() {
+            return MqttService.this;
+        }
+    }
+
     @Nullable
     @Override
     public IBinder onBind(Intent intent) {
-        return null; // Servicio no enlazado
+        return binder;
     }
 }

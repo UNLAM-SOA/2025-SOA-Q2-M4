@@ -28,6 +28,7 @@
 #define TIMER_CELL 550 //550ms 
 #define TIMER_INIT 300 //300ms
 #define TIMER_LOGS 1000 //1000ms = 1s
+#define TIMER_MQTT 50 //50ms
 
 #define WeightThreshold 2 //120g
 
@@ -39,7 +40,7 @@ enum States
 {
     INIT = 1,
     SENSING = 2,
-    LOAD_CELL = 3,
+    LOAD_CELL = 3
 };
 
 enum Events
@@ -51,7 +52,21 @@ enum Events
     ULTRA_NEARBY = 5,
     ULTRA_FAR = 6,
     NO_EVENT = 7,
+    MQTT_MSG = 8
 };
+
+enum MqttMsgIndex
+{
+    LED_AGUA_OFF = 1,
+    LED_AGUA_ON = 2,
+    LED_COMIDA_OFF = 3,
+    LED_COMIDA_ON = 4
+};
+
+const char* MqttMsgTy[] = { "LED_AGUA_OFF",
+                            "LED_AGUA_ON",
+                            "LED_COMIDA_OFF",
+                            "LED_COMIDA_ON" };
 
 int const ServoLowWeightPosition = 180;
 int const ServoNormalPosition = 0;
@@ -66,21 +81,21 @@ float const calibration_factor = 420.0;
 
 int currentState = 0;
 int currentEvent = 0;
-
 int potValue = 0;
 int objectTime = 0;
 int objectDistance = 0;
-
-float weight = 0.0;
-
 int servoAngle = 0;
-
 int waterLed = 0;
 int ultraLed = 0;
 int ServoChk = 0;
 
+float weight = 0.0;
+
+char MqttMessage[20];
+
 unsigned long timeSinceBoot;
 unsigned long timeCell;
+unsigned long timeMqttLoop;
 
 Servo servo1;
 HX711 loadCell;
@@ -105,6 +120,32 @@ static void concurrentServoTask(void *parameters)
     }
 }
 
+static void mqttConnection()
+{
+    Serial.print("Connecting to MQTT... ");
+    if (WiFi.status() == WL_CONNECTED)
+    {
+        if (client.connect("ESP32Client"))
+        {
+            Serial.println("Connected");
+            client.subscribe(topicMqtt);
+        }
+        else
+        {
+            Serial.println("Connection Failed");
+        }
+    }
+}
+
+static void mqttLoop()
+{
+    if ((millis() - timeMqttLoop) >= TIMER_MQTT)
+    {
+        timeMqttLoop = millis();
+        client.loop();
+    }
+}
+
 static void concurrentSendByMqtt(void *parameters)
 {
     JsonDocument logs;
@@ -112,54 +153,48 @@ static void concurrentSendByMqtt(void *parameters)
     int value;
     unsigned long timeLogs = timeSinceBoot;
 
+    // Primera conexion de seteo
+    mqttConnection();
+
+    // Loop de conexion y envio de datos
     while(1)
     {
         if (WiFi.status() == WL_CONNECTED)
         {
-            switch(client.loop())
+            mqttLoop();
+
+            if (client.connected())
             {
-                case true:
-                    if ((millis() - timeLogs) >= TIMER_LOGS)
+                if ((millis() - timeLogs) >= TIMER_LOGS)
+                {
+                    timeLogs = millis();
+
+                    // Armo el mensaje de Logs
+                    logs["TimeLog (s)"] = (int) timeLogs / 1000;
+                    logs["Weight (g)"] = weight;
+                    logs["PotValue"] = potValue;
+                    logs["Distance (cm)"] = objectDistance;
+                    logs["State"] = currentState;
+                    logs["Event"] = currentEvent;
+                    serializeJson(logs, message);
+
+                    // Envia mensaje al topic
+                    if (client.publish(topicMqtt, message))
                     {
-                        timeLogs = millis();
-
-                        // Armo el mensaje de Logs
-                        logs["TimeLog (s)"] = (int) timeLogs / 1000;
-                        logs["Weight (g)"] = weight;
-                        logs["PotValue"] = potValue;
-                        logs["Distance (cm)"] = objectDistance;
-                        logs["State"] = currentState;
-                        logs["Event"] = currentEvent;
-                        serializeJson(logs, message);
-
-                        // Envia mensaje al topic
-                        if (client.publish(topicMqtt, message))
-                        {
-                            Serial.print("log: ");
-                            Serial.println(message);
-                        }
+                        Serial.print("log: ");
+                        Serial.println(message);
                     }
-                    break;
+                }
+            }
+            else
+            {
+                Serial.println("MQTT Connection Lost.. ");                    
 
-                case false:
-                    Serial.println("MQTT Connection Lost.. ");                    
-
-                    // Loop hasta que estemos conectados
-                    while (!client.connected())
-                    {
-                        Serial.print("Connecting to MQTT... ");
-
-                        // Intentamos conectar
-                        if (client.connect("ESP32Client", NULL, topicMqtt)) 
-                        {
-                            Serial.println("Connected");
-                        }
-                        else
-                        {
-                            Serial.println("Connection Failed");
-                        }
-                    }
-                    break;
+                // Loop hasta que estemos conectados
+                while (!client.connected())
+                {
+                    mqttConnection();
+                }
             }
         }
     }
@@ -197,9 +232,16 @@ void performCalculations()
     objectDistance = 0.01723 * objectTime;
 }
 
-void callback(char* topic, byte* message, unsigned int length) 
+void MqttCallback(char* topic, byte* payload, unsigned int length) 
 {
-    //Do nothing
+    if (length < sizeof(MqttMessage))
+    {
+        Serial.print("Mensaje recibido: ");
+
+        memcpy(MqttMessage, payload, sizeof(MqttMessage));
+        MqttMessage[length] = '\0';
+        Serial.println(MqttMessage);
+    }
 }
 
 void initSignal()
@@ -238,7 +280,7 @@ void initSignal()
     ledcWrite(LedPinFood, ledLow);
 
     // Creo la tarea de MqTT aca porque necesita internet
-    xTaskCreatePinnedToCore(concurrentSendByMqtt,"concurrent_mqtt_task",TAM_PILA_MQTT, NULL, 1, &MqttHandler, 1);
+    xTaskCreatePinnedToCore(concurrentSendByMqtt,"concurrent_mqtt_task_s",TAM_PILA_MQTT, NULL, 1, &MqttHandler, 1);
 
     currentState = SENSING;
 }
@@ -301,12 +343,18 @@ void getEvent()
             }
             break;
     }
+
+    if (*MqttMessage != '\0')
+    {
+        currentEvent = MQTT_MSG;
+    }
 }
 
 void SolveEvent()
 {
     // Manejo local de valores
     int servoValue = servoAngle;
+    int msgTy = 0;
 
     switch (currentEvent)
     {
@@ -357,7 +405,42 @@ void SolveEvent()
                 Serial.println("xQueue full!");
             }
             break;
+        
+        case MQTT_MSG:
+            for (unsigned int i = 0; i < 4; i++)
+            {
+                if (!strcmp(MqttMsgTy[i], MqttMessage))
+                {
+                    *MqttMessage = '\0';
+                    msgTy = i + 1;
+                    i = 4;
+                }
+            }
+
+            switch (msgTy)
+            {
+            case LED_AGUA_OFF:
+                ledcWrite(LedPinWater, ledLow);
+                break;
             
+            case LED_AGUA_ON:
+                ledcWrite(LedPinWater, ledHigh);
+                break;
+
+            case LED_COMIDA_OFF:
+                ledcWrite(LedPinFood, ledLow);
+                break;
+
+            case LED_COMIDA_ON:
+                ledcWrite(LedPinFood, ledHigh);
+                break;
+
+            default:
+                break;
+            }
+            
+            break;
+
         default:
             Serial.println("Unknown Event!");
             break;
@@ -418,7 +501,7 @@ void setup()
     Serial.print("Current calibration factor: ");
     Serial.println(calibration_factor);
 
-    timeSinceBoot = timeCell = millis();
+    timeSinceBoot = timeCell = timeMqttLoop = millis();
     currentState = INIT;
     pinMode(TriggerPin, OUTPUT);
     pinMode(EchoPin, INPUT);
@@ -429,7 +512,7 @@ void setup()
     xTaskCreatePinnedToCore(concurrentServoTask,"concurrent_servo_task",TAM_PILA_SERVO, NULL, 0, &ServoHandler, 0);
 
     client.setServer(mqtt_server, mqtt_port);
-    client.setCallback(callback);
+    client.setCallback(MqttCallback);
 }
 
 void loop()
@@ -446,5 +529,11 @@ void loop()
     // Ejecucion de calculos en base a sensores
     performCalculations();
     
+    // Reviso mensajes de Mqtt
+    if (WiFi.status() == WL_CONNECTED)
+    {
+        mqttLoop();
+    }
+
     stateMachine();
 }
