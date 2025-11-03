@@ -15,8 +15,8 @@ public class ShakeDetector implements SensorEventListener {
     private static final String TAG = "ShakeDetector";
 
     // Configuración
-    private static final float SHAKE_THRESHOLD_GRAVITY = 1.2F; // fuerza mínima
-    private static final int SHAKE_MIN_DURATION_MS = 250;      // duración mínima de la sacudida
+    private static final float SHAKE_THRESHOLD_GRAVITY = 2.0F; // fuerza mínima
+    private static final int SHAKE_MIN_DURATION_MS = 1000;     // duración mínima de la sacudida
     private static final int SHAKE_SLOP_TIME_MS = 500;         // tiempo mínimo entre eventos
     private static final int SHAKE_TOLERANCE_MS = 150;         // tolerancia a pausas breves
     private long shakeStartTime = 0;

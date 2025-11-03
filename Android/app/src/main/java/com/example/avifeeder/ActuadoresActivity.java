@@ -194,7 +194,7 @@ public class ActuadoresActivity extends AppCompatActivity implements NetworkChan
         }
     };
 
-    // Método de ejemplo para publicar comandos MQTT
+    // Metodo de ejemplo para publicar comandos MQTT
     private void enviarComando(String comando) {
         if (isBound && mqttService != null) {
             mqttService.publish(comando);

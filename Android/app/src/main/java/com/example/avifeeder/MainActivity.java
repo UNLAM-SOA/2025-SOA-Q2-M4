@@ -85,6 +85,10 @@ public class MainActivity extends AppCompatActivity {
         super.onDestroy();
         // Desregistrar receiver
         unregisterReceiver(mqttReceiver);
+
+        // Detener el servicio MQTT al cerrar la app
+        Intent stopIntent = new Intent(this, MqttService.class);
+        stopService(stopIntent);
     }
 
     private void updateUIWithMqttData(String message) {

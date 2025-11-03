@@ -456,6 +456,10 @@ void SolveEvent()
                         ledcWrite(LedPinFood, ledLow);
                     }
 
+                    // Reseteo de senseores
+                    waterLed = false;
+                    ultraLed = false;
+
                     vTaskDelay(TIMER_INIT);
                 }
                 break;
