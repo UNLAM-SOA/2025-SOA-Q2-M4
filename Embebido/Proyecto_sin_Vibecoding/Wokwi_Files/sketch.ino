@@ -60,13 +60,15 @@ enum MqttMsgIndex
     LED_AGUA_OFF = 1,
     LED_AGUA_ON = 2,
     LED_COMIDA_OFF = 3,
-    LED_COMIDA_ON = 4
+    LED_COMIDA_ON = 4,
+    LED_SHAKER = 5
 };
 
 const char* MqttMsgTy[] = { "LED_AGUA_OFF",
                             "LED_AGUA_ON",
                             "LED_COMIDA_OFF",
-                            "LED_COMIDA_ON" };
+                            "LED_COMIDA_ON",
+                            "LED_SHAKER" };
 
 int const ServoLowWeightPosition = 180;
 int const ServoNormalPosition = 0;
@@ -122,9 +124,10 @@ static void concurrentServoTask(void *parameters)
 
 static void mqttConnection()
 {
-    Serial.print("Connecting to MQTT... ");
     if (WiFi.status() == WL_CONNECTED)
     {
+        Serial.print("Connecting to MQTT... ");
+
         if (client.connect("ESP32Client"))
         {
             Serial.println("Connected");
@@ -254,11 +257,11 @@ void initSignal()
     WiFi.begin(ssid, password);
     Serial.print("Connecting to WiFi... ");
 
-    while (WiFi.status() != WL_CONNECTED && counter <= 6) 
+    while (WiFi.status() != WL_CONNECTED || counter <= 6) 
     {
         ledValue = !ledValue;
 
-        if (ledValue == true)
+        if (ledValue)
         {
             ledcWrite(LedPinWater, ledHigh);
             ledcWrite(LedPinFood, ledHigh);
@@ -407,13 +410,13 @@ void SolveEvent()
             break;
         
         case MQTT_MSG:
-            for (unsigned int i = 0; i < 4; i++)
+            for (unsigned int i = 0; i < 5; i++)
             {
                 if (!strcmp(MqttMsgTy[i], MqttMessage))
                 {
                     *MqttMessage = '\0';
                     msgTy = i + 1;
-                    i = 4;
+                    i = 5;
                 }
             }
 
@@ -433,6 +436,28 @@ void SolveEvent()
 
             case LED_COMIDA_ON:
                 ledcWrite(LedPinFood, ledHigh);
+                break;
+
+            case LED_SHAKER:
+                bool ledValue;
+                
+                for (size_t i = 0; i < 6; i++)                 
+                {
+                    ledValue = !ledValue;
+
+                    if (ledValue)
+                    {
+                        ledcWrite(LedPinWater, ledHigh);
+                        ledcWrite(LedPinFood, ledHigh);
+                    }
+                    else
+                    {
+                        ledcWrite(LedPinWater, ledLow);
+                        ledcWrite(LedPinFood, ledLow);
+                    }
+
+                    vTaskDelay(TIMER_INIT);
+                }
                 break;
 
             default:

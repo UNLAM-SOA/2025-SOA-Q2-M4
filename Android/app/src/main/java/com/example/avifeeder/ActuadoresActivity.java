@@ -1,5 +1,6 @@
 package com.example.avifeeder;
 
+import android.annotation.SuppressLint;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
@@ -15,6 +16,8 @@ import android.util.Log;
 import android.widget.ImageButton;
 import android.widget.Toast;
 import android.widget.Button;
+import android.hardware.Sensor;
+import android.hardware.SensorManager;
 
 import androidx.activity.EdgeToEdge;
 import androidx.annotation.NonNull;
@@ -28,12 +31,13 @@ import com.google.android.material.snackbar.Snackbar;
 public class ActuadoresActivity extends AppCompatActivity implements NetworkChangeReceiver.NetworkChangeListener {
 
     private static final String TAG = "ActuadoresActivity";
-
     private NetworkChangeReceiver networkReceiver;
     private Snackbar noInternetSnackbar;
     private MqttService mqttService;
     private boolean isBound = false;
     private ConnectivityManager.NetworkCallback networkCallback; // Para Android 9+
+    private SensorManager sensorManager;
+    private ShakeDetector shakeDetector;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -67,8 +71,20 @@ public class ActuadoresActivity extends AppCompatActivity implements NetworkChan
         btnDesactivarLedComida.setOnClickListener(v -> enviarComando("LED_COMIDA_OFF"));
         btnActivarLedAgua.setOnClickListener(v -> enviarComando("LED_AGUA_ON"));
         btnDesactivarLedAgua.setOnClickListener(v -> enviarComando("LED_AGUA_OFF"));
+
+        // Sensor de movimiento
+        sensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
+        shakeDetector = new ShakeDetector(() -> {
+            if (isBound && mqttService != null) {
+                mqttService.publish("LED_SHAKER");
+                Toast.makeText(this, "Sacudida detectada -> LED_SHAKER", Toast.LENGTH_SHORT).show();
+            } else {
+                Toast.makeText(this, "MQTT no conectado", Toast.LENGTH_SHORT).show();
+            }
+        });
     }
 
+    @SuppressLint("ObsoleteSdkInt")
     @Override
     protected void onStart() {
         super.onStart();
@@ -90,6 +106,11 @@ public class ActuadoresActivity extends AppCompatActivity implements NetworkChan
     @Override
     protected void onResume() {
         super.onResume();
+
+        Sensor accelerometer = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
+        if (accelerometer != null) {
+            sensorManager.registerListener(shakeDetector, accelerometer, SensorManager.SENSOR_DELAY_GAME);
+        }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             // Modo moderno: NetworkCallback
@@ -118,20 +139,12 @@ public class ActuadoresActivity extends AppCompatActivity implements NetworkChan
         onNetworkChange(connected);
     }
 
-    /**
-     *  Registro del BroadcastReceiver para Android < 9 (Pie)
-     *  Suprime la advertencia de método deprecado.
-     */
-    @SuppressWarnings("deprecation")
-    private void registerLegacyReceiver() {
-        networkReceiver = new NetworkChangeReceiver(this);
-        IntentFilter filter = new IntentFilter(ConnectivityManager.CONNECTIVITY_ACTION);
-        registerReceiver(networkReceiver, filter);
-    }
-
     @Override
     protected void onPause() {
         super.onPause();
+
+        sensorManager.unregisterListener(shakeDetector);
+
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && networkCallback != null) {
                 ConnectivityManager cm = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
@@ -144,6 +157,13 @@ public class ActuadoresActivity extends AppCompatActivity implements NetworkChan
         } catch (Exception e) {
             Log.e(TAG, "Error al desregistrar receptor de red", e);
         }
+    }
+
+    @SuppressWarnings("deprecation")
+    private void registerLegacyReceiver() {
+        networkReceiver = new NetworkChangeReceiver(this);
+        IntentFilter filter = new IntentFilter(ConnectivityManager.CONNECTIVITY_ACTION);
+        registerReceiver(networkReceiver, filter);
     }
 
     @Override
