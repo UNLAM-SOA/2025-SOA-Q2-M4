@@ -21,7 +21,7 @@ public class MqttService extends Service {
     private static final String TAG = "MqttService";
     public static final String MQTT_MESSAGE_BROADCAST = "com.example.avifeeder.MQTT_MESSAGE";
     public static final String MQTT_MESSAGE_KEY = "message";
-    private static final String BROKER_URL = "tcp://broker.hivemq.com:1883";
+    private static final String BROKER_URL = "tcp://192.168.30.196:1883";
     private static final String TOPIC = "AviFeeder/Datos";
     private MqttClient mqttClient;
     private final Handler handler = new Handler();
