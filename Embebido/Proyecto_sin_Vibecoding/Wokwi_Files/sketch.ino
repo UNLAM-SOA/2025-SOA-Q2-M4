@@ -22,7 +22,7 @@
 #define ServoPin 5
 #define PotentiometerPin 34
 
-#define PotThreshold 2048
+#define PotThreshold 1000
 #define DistanceThreshold 20
 
 #define TIMER_CELL 550 //550ms 
@@ -70,13 +70,13 @@ const char* MqttMsgTy[] = { "LED_AGUA_OFF",
                             "LED_COMIDA_ON",
                             "LED_SHAKER" };
 
-int const ServoLowWeightPosition = 180;
+int const ServoLowWeightPosition = 15;
 int const ServoNormalPosition = 0;
 int const mqtt_port = 1883;
 
-const char* ssid = "Wokwi-GUEST"; //"SO Avanzados"
-const char* password = ""; //"SOA.2019"
-const char* mqtt_server = "broker.hivemq.com";
+const char* ssid = "SO Avanzados";
+const char* password = "SOA.2019";
+const char* mqtt_server = "192.168.30.196";
 const char* topicMqtt = "AviFeeder/Datos";
 
 float const calibration_factor = 420.0;
@@ -523,7 +523,7 @@ void setup()
 
     loadCell.set_scale(calibration_factor);
 
-    loadCell.tare(10);
+    loadCell.tare(170);
 
     Serial.println("Load cell tared and ready!");
 
