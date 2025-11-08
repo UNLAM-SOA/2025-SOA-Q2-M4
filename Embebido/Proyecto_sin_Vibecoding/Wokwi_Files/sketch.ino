@@ -25,7 +25,7 @@
 #define PotThreshold 1000
 #define DistanceThreshold 20
 
-#define TIMER_CELL 550 //550ms 
+#define TIMER_CELL 700 //550ms 
 #define TIMER_INIT 300 //300ms
 #define TIMER_LOGS 1000 //1000ms = 1s
 #define TIMER_MQTT 50 //50ms
@@ -523,7 +523,7 @@ void setup()
 
     loadCell.set_scale(calibration_factor);
 
-    loadCell.tare(170);
+    loadCell.tare(10);
 
     Serial.println("Load cell tared and ready!");
 
