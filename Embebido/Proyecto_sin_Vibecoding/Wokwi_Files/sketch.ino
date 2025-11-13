@@ -21,16 +21,17 @@
 #define EchoPin 18
 #define ServoPin 5
 #define PotentiometerPin 34
+#define PotentiometerPin2 35
 
 #define PotThreshold 1000
 #define DistanceThreshold 20
 
-#define TIMER_CELL 700 //550ms 
+#define TIMER_CELL 1000 //550ms 
 #define TIMER_INIT 300 //300ms
 #define TIMER_LOGS 1000 //1000ms = 1s
 #define TIMER_MQTT 50 //50ms
 
-#define WeightThreshold 2 //120g
+#define WeightThreshold 1000 //1000g
 
 #define TAM_PILA_SERVO 2048
 #define TAM_PILA_MQTT 4096
@@ -90,6 +91,7 @@ int servoAngle = 0;
 int waterLed = 0;
 int ultraLed = 0;
 int ServoChk = 0;
+int potValue2 = 0;
 
 float weight = 0.0;
 
@@ -222,7 +224,8 @@ void readLoadCell()
 
     if (loadCell.is_ready())
     {
-        weight = loadCell.get_units(5);
+        //weight = loadCell.get_units(5);
+        weight = analogRead(potValue2);
         if (weight < 0)
         {
             weight = 0;
@@ -548,6 +551,7 @@ void loop()
 {
     // Lectura de sensores
     potValue = analogRead(PotentiometerPin);
+    potValue2 = analogRead(PotentiometerPin2);
     objectTime = readUltrasonicSensor();
     
     if ((millis() - timeCell) >= TIMER_CELL)
