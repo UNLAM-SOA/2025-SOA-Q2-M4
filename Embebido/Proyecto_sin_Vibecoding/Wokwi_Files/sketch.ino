@@ -75,6 +75,13 @@ int const ServoLowWeightPosition = 15;
 int const ServoNormalPosition = 0;
 int const mqtt_port = 1883;
 
+// Valores de ejecucion simulado - WiFi-Mqtt
+// const char* ssid = "Wokwi-GUEST";
+// const char* password = "";
+// const char* mqtt_server = "broker.hivemq.com";
+// const char* topicMqtt = "AviFeeder/Datos";
+
+// Valores de ejecucion fisico - WiFi-Mqtt
 const char* ssid = "SO Avanzados";
 const char* password = "SOA.2019";
 const char* mqtt_server = "192.168.30.196";
@@ -111,20 +118,26 @@ static TaskHandle_t ServoHandler = NULL;
 static TaskHandle_t MqttHandler = NULL;
 static QueueHandle_t ServoQueue;
 
-// Servo se mueve si el peso baja de 1 kg (empieza a servir comida)
-// Servo vuelve a su posición si el peso sube de 1 kg (deja de servir comida)
-static void concurrentServoTask(void *parameters) 
-{
-    int value;
+/**************************************************************
 
-    while(xQueueReceive(ServoQueue, &value, portMAX_DELAY) == pdPASS)
-    {   
-        // Resuelve tarea del servo
-        servo1.write(value);
-    }
-}
+INDICE
 
-static void mqttConnection()
+136. Funciones de tareas concurrentes
+211. Tareas concurrentes
+260. Lectura de sensores
+308. Get de eventos
+379. Resolucion de eventos
+516. Manejo de estados
+593. Funciones de sistema
+
+**************************************************************/
+
+/*************************************************************/
+/*            Funciones de tareas concurrentes               */
+/*************************************************************/
+
+// Se encarga de la reconeccion con Mqtt
+void mqttConnection()
 {
     if (WiFi.status() == WL_CONNECTED)
     {
@@ -142,7 +155,8 @@ static void mqttConnection()
     }
 }
 
-static void mqttLoop()
+// Se encarga de mantener viva la conexion a Mqtt y recibir mensajes
+void mqttLoop()
 {
     if ((millis() - timeMqttLoop) >= TIMER_MQTT)
     {
@@ -151,93 +165,36 @@ static void mqttLoop()
     }
 }
 
-static void concurrentSendByMqtt(void *parameters)
+// Envio de mensaje Mqtt
+void sendMqttLogs(unsigned long* timeLogs)
 {
     JsonDocument logs;
     char message[128];
-    int value;
-    unsigned long timeLogs = timeSinceBoot;
 
-    // Primera conexion de seteo
-    mqttConnection();
-
-    // Loop de conexion y envio de datos
-    while(1)
+    // Si esta conectado, y se cumplio el tiempo, envia logs
+    if (client.connected() && (millis() - *timeLogs) >= TIMER_LOGS)
     {
-        if (WiFi.status() == WL_CONNECTED)
+        *timeLogs = millis();
+
+        // Armo el mensaje de Logs
+        logs["TimeLog (s)"] = (int) *timeLogs / 1000;
+        logs["Weight (g)"] = weight;
+        logs["PotValue"] = potValue;
+        logs["Distance (cm)"] = objectDistance;
+        logs["State"] = currentState;
+        logs["Event"] = currentEvent;
+        serializeJson(logs, message);
+
+        // Envia mensaje al topic
+        if (client.publish(topicMqtt, message))
         {
-            mqttLoop();
-
-            if (client.connected())
-            {
-                if ((millis() - timeLogs) >= TIMER_LOGS)
-                {
-                    timeLogs = millis();
-
-                    // Armo el mensaje de Logs
-                    logs["TimeLog (s)"] = (int) timeLogs / 1000;
-                    logs["Weight (g)"] = weight;
-                    logs["PotValue"] = potValue;
-                    logs["Distance (cm)"] = objectDistance;
-                    logs["State"] = currentState;
-                    logs["Event"] = currentEvent;
-                    serializeJson(logs, message);
-
-                    // Envia mensaje al topic
-                    if (client.publish(topicMqtt, message))
-                    {
-                        Serial.print("log: ");
-                        Serial.println(message);
-                    }
-                }
-            }
-            else
-            {
-                Serial.println("MQTT Connection Lost.. ");                    
-
-                // Loop hasta que estemos conectados
-                while (!client.connected())
-                {
-                    mqttConnection();
-                }
-            }
+            // Serial.print("log: ");
+            // Serial.println(message);
         }
     }
 }
 
-long readUltrasonicSensor()
-{
-    digitalWrite(TriggerPin, LOW);
-    delayMicroseconds(2);
-
-    digitalWrite(TriggerPin, HIGH);
-    delayMicroseconds(10);
-
-    digitalWrite(TriggerPin, LOW);
-
-    return pulseIn(EchoPin, HIGH);
-}
-
-void readLoadCell()
-{
-    timeCell = millis();
-
-    if (loadCell.is_ready())
-    {
-        //weight = loadCell.get_units(5);
-        weight = analogRead(potValue2);
-        if (weight < 0)
-        {
-            weight = 0;
-        }
-    }
-}
-
-void performCalculations()
-{
-    objectDistance = 0.01723 * objectTime;
-}
-
+// Recuperacion del mensaje recibido (se llama cuando Client.loop de Mqtt recibe algo)
 void MqttCallback(char* topic, byte* payload, unsigned int length) 
 {
     if (length < sizeof(MqttMessage))
@@ -250,6 +207,316 @@ void MqttCallback(char* topic, byte* payload, unsigned int length)
     }
 }
 
+/*************************************************************/
+/*                   Tareas concurrentes                     */
+/*************************************************************/
+
+// Servo se mueve si el peso baja de 1 kg (empieza a servir comida)
+// Servo vuelve a su posición si el peso sube de 1 kg (deja de servir comida)
+static void concurrentServoTask(void *parameters) 
+{
+    int value;
+
+    while(xQueueReceive(ServoQueue, &value, portMAX_DELAY) == pdPASS)
+    {   
+        // Resuelve tarea del servo
+        servo1.write(value);
+    }
+}
+
+// Se ocupa de conectar a Mqtt, reconectar en caso de caida y enviar logs
+static void concurrentSendByMqtt(void *parameters)
+{
+    unsigned long timeLogs = timeSinceBoot;
+
+    // Primera conexion de seteo
+    mqttConnection();
+
+    // Loop de conexion y envio de datos
+    while(1)
+    {
+        if (WiFi.status() == WL_CONNECTED)
+        {
+            mqttLoop();
+            
+            if (!client.connected())
+            {
+                Serial.println("MQTT Connection Lost.. ");
+
+                // Loop hasta que estemos conectados
+                while (!client.connected())
+                {
+                    mqttConnection();
+                }
+            }
+
+            // Si esta conectado, envia logs
+            sendMqttLogs(&timeLogs);
+        }
+    }
+}
+
+/*************************************************************/
+/*                   Lectura de sensores                     */
+/*************************************************************/
+
+// Lectura del sensor de ultrasonido
+long readUltrasonicSensor()
+{
+    int distance = 0;
+
+    digitalWrite(TriggerPin, LOW);
+    delayMicroseconds(2);
+
+    digitalWrite(TriggerPin, HIGH);
+    delayMicroseconds(10);
+
+    digitalWrite(TriggerPin, LOW);
+
+    objectTime = pulseIn(EchoPin, HIGH);
+    distance = 0.01723 * objectTime;
+    
+    return distance;
+}
+
+// Lectura de la celular de carga (potenciometro)
+void readLoadCell()
+{
+    // Lectura de peso
+    /*
+    timeCell = millis();
+
+    if (loadCell.is_ready())
+    {
+        weight = loadCell.get_units(5);
+        if (weight < 0)
+        {
+            weight = 0;
+        }
+    }
+    */
+
+    // Paso de potenciometro a equivalencia de peso
+    weight = potValue2;
+    if (weight < 0)
+    {
+        weight = 0;
+    }
+}
+
+/*************************************************************/
+/*                       Get de eventos                      */
+/*************************************************************/
+
+// Get de evento de Agua si se cumple la condicion
+void getWater()
+{
+    if (waterLed && potValue >= PotThreshold)
+    {
+        currentEvent = WATER_OK;
+    }
+    else if (!waterLed && potValue < PotThreshold)
+    {
+        currentEvent = NO_WATER;
+    }
+}
+
+// Get de evento Ultrasonido si se cumple la condicion
+void getUltra()
+{
+    if (ultraLed && objectDistance < DistanceThreshold)
+    {
+        currentEvent = ULTRA_NEARBY;
+    }
+    else if (!ultraLed && objectDistance >= DistanceThreshold)
+    {
+        currentEvent = ULTRA_FAR;
+    }
+}
+
+// Get de evento Servo si se cumple la condicion
+void getServo()
+{
+    if (ServoChk && weight >= WeightThreshold)
+    {
+        currentEvent = FOOD_OK;
+    }
+    else if (!ServoChk && weight < WeightThreshold)
+    {
+        currentEvent = NO_FOOD;
+    }
+}
+
+// Get de evento Mqtt si se recibio mensaje
+void getMqtt()
+{
+    if (*MqttMessage != '\0')
+    {
+        currentEvent = MQTT_MSG;
+    }
+}
+
+// Evaluacion de eventos
+void getEvent()
+{
+    // Evento por defecto
+    currentEvent = NO_EVENT;
+
+    // Evaluo eventos segun sensor de agua
+    getWater();
+
+    // Evaluo eventos segun sensor de ultrasonido
+    getUltra();
+
+    // Evaluo eventos segun celular de carga
+    getServo();
+
+    // Evaluo eventos segun Mqtt
+    getMqtt();
+}
+
+/*************************************************************/
+/*                   Resolucion de eventos                   */
+/*************************************************************/
+
+// Resolucion de evento de Comida
+void foodEvent(int State, int servoValue)
+{
+    if (xQueueSend(ServoQueue, &servoValue, portMAX_DELAY) == pdPASS)
+    {
+        currentState = State;
+    }
+    else
+    {
+        Serial.println("xQueue full!");
+    }
+}
+
+// Accion de Shake Android
+void ledShaker()
+{
+    bool ledValue;
+    int counter = 0;
+
+    // Parpadeo de respuesta
+    while (counter++ < 6)                 
+    {
+        ledValue = !ledValue;
+        if (ledValue)
+        {
+            ledcWrite(LedPinWater, ledHigh);
+            ledcWrite(LedPinFood, ledHigh);
+        }
+        else
+        {
+            ledcWrite(LedPinWater, ledLow);
+            ledcWrite(LedPinFood, ledLow);
+        }
+
+        vTaskDelay(TIMER_INIT);
+    }
+
+    // Reseteo de senseores
+    waterLed = false;
+    ultraLed = false;
+}
+
+// Resolucion de evento Mqtt
+void mqttEvent()
+{
+    int msgTy = 0;
+
+    for (int i = 0; i < 5; i++)
+    {
+        if (!strcmp(MqttMsgTy[i], MqttMessage))
+        {
+            *MqttMessage = '\0';
+            msgTy = i + 1;
+            i = 5;
+        }
+    }
+
+    switch (msgTy)
+    {
+    case LED_AGUA_OFF:
+        ledcWrite(LedPinWater, ledLow);
+        break;
+    
+    case LED_AGUA_ON:
+        ledcWrite(LedPinWater, ledHigh);
+        break;
+
+    case LED_COMIDA_OFF:
+        ledcWrite(LedPinFood, ledLow);
+        break;
+
+    case LED_COMIDA_ON:
+        ledcWrite(LedPinFood, ledHigh);
+        break;
+
+    case LED_SHAKER:
+        ledShaker();
+        break;
+
+    default:
+        break;
+    }
+}
+
+// Resolucion de eventos detectados
+void solveEvent()
+{
+    switch (currentEvent)
+    {
+        case NO_EVENT:
+            // Do nothing
+            break;
+
+        case NO_WATER:
+            waterLed = true;
+            ledcWrite(LedPinWater, ledHigh);
+            break;
+
+        case WATER_OK:
+            waterLed = false;
+            ledcWrite(LedPinWater, ledLow);
+            break;
+
+        case ULTRA_FAR:
+            ultraLed = true;
+            ledcWrite(LedPinFood, ledHigh);
+            break;
+
+        case ULTRA_NEARBY:
+            ultraLed = false;
+            ledcWrite(LedPinFood, ledLow);
+            break;
+
+        case NO_FOOD:
+            ServoChk = true;
+            foodEvent(LOAD_CELL, servoAngle);
+            break;
+        
+        case FOOD_OK:
+            ServoChk = false;
+            foodEvent(SENSING, servoAngle);
+            break;
+        
+        case MQTT_MSG:
+            mqttEvent();
+            break;
+
+        default:
+            Serial.println("Unknown Event!");
+            break;
+    }
+}
+
+/*************************************************************/
+/*                     Manejo de estados                     */
+/*************************************************************/
+
+// Señal de evento inicial
 void initSignal()
 {
     bool ledValue = false;
@@ -291,194 +558,7 @@ void initSignal()
     currentState = SENSING;
 }
 
-void getEvent()
-{
-    // Evento por defecto
-    currentEvent = NO_EVENT;
-
-    // Evaluo eventos segun sensor de agua
-    switch (waterLed)
-    {
-        case true:
-            if (potValue >= PotThreshold)
-            {
-                currentEvent = WATER_OK;
-            }
-            break;
-
-        case false:
-            if (potValue < PotThreshold)
-            {
-                currentEvent = NO_WATER;
-            }
-            break;
-    }
-
-    // Evaluo eventos segun sensor de ultrasonido
-    switch (ultraLed)
-    {
-        case true:
-            if (objectDistance < DistanceThreshold)
-            {
-                currentEvent = ULTRA_NEARBY;
-            }
-            break;
-
-        case false:
-            if (objectDistance >= DistanceThreshold)
-            {
-                currentEvent = ULTRA_FAR;
-            }
-            break;
-    }
-
-    // Evaluo eventos segun celular de carga
-    switch (ServoChk)
-    {
-        case true:
-            if (weight >= WeightThreshold)
-            {
-                currentEvent = FOOD_OK;
-            }
-            break;
-
-        case false:
-            if (weight < WeightThreshold)
-            {
-                currentEvent = NO_FOOD;
-            }
-            break;
-    }
-
-    if (*MqttMessage != '\0')
-    {
-        currentEvent = MQTT_MSG;
-    }
-}
-
-void SolveEvent()
-{
-    // Manejo local de valores
-    int servoValue = servoAngle;
-    int msgTy = 0;
-
-    switch (currentEvent)
-    {
-        case NO_EVENT:
-            // Do nothing
-            break;
-
-        case NO_WATER:
-            waterLed = true;
-            ledcWrite(LedPinWater, ledHigh);
-            break;
-
-        case WATER_OK:
-            waterLed = false;
-            ledcWrite(LedPinWater, ledLow);
-            break;
-
-        case ULTRA_FAR:
-            ultraLed = true;
-            ledcWrite(LedPinFood, ledHigh);
-            break;
-
-        case ULTRA_NEARBY:
-            ultraLed = false;
-            ledcWrite(LedPinFood, ledLow);
-            break;
-
-        case NO_FOOD:
-            ServoChk = true;
-            if (xQueueSend(ServoQueue, &servoValue, portMAX_DELAY) == pdPASS)
-            {
-                currentState = LOAD_CELL;
-            }
-            else
-            {
-                Serial.println("xQueue full!");
-            }
-            break;
-        
-        case FOOD_OK:
-            ServoChk = false;
-            if (xQueueSend(ServoQueue, &servoValue, portMAX_DELAY) == pdPASS)
-            {
-                currentState = SENSING;
-            }
-            else
-            {
-                Serial.println("xQueue full!");
-            }
-            break;
-        
-        case MQTT_MSG:
-            for (unsigned int i = 0; i < 5; i++)
-            {
-                if (!strcmp(MqttMsgTy[i], MqttMessage))
-                {
-                    *MqttMessage = '\0';
-                    msgTy = i + 1;
-                    i = 5;
-                }
-            }
-
-            switch (msgTy)
-            {
-            case LED_AGUA_OFF:
-                ledcWrite(LedPinWater, ledLow);
-                break;
-            
-            case LED_AGUA_ON:
-                ledcWrite(LedPinWater, ledHigh);
-                break;
-
-            case LED_COMIDA_OFF:
-                ledcWrite(LedPinFood, ledLow);
-                break;
-
-            case LED_COMIDA_ON:
-                ledcWrite(LedPinFood, ledHigh);
-                break;
-
-            case LED_SHAKER:
-                bool ledValue;
-                
-                for (size_t i = 0; i < 6; i++)                 
-                {
-                    ledValue = !ledValue;
-
-                    if (ledValue)
-                    {
-                        ledcWrite(LedPinWater, ledHigh);
-                        ledcWrite(LedPinFood, ledHigh);
-                    }
-                    else
-                    {
-                        ledcWrite(LedPinWater, ledLow);
-                        ledcWrite(LedPinFood, ledLow);
-                    }
-
-                    // Reseteo de senseores
-                    waterLed = false;
-                    ultraLed = false;
-
-                    vTaskDelay(TIMER_INIT);
-                }
-                break;
-
-            default:
-                break;
-            }
-            
-            break;
-
-        default:
-            Serial.println("Unknown Event!");
-            break;
-    }
-}
-
+// Maquina de estados
 void stateMachine()
 {   
     // Obtencion del evento actual en base a sensores
@@ -494,13 +574,13 @@ void stateMachine()
     case SENSING:
         // Seteo el angulo del servo para cuando corresponda abrirlo
         servoAngle = ServoLowWeightPosition;
-        SolveEvent();
+        solveEvent();
         break;
     
     case LOAD_CELL:
         // Seteo el angulo del servo para cuando corresponda cerrarlo
         servoAngle = ServoNormalPosition;
-        SolveEvent();
+        solveEvent();
         break;
 
     default:
@@ -509,6 +589,11 @@ void stateMachine()
     }
 }
 
+/*************************************************************/
+/*                   Funciones de sistema                    */
+/*************************************************************/
+
+// Setup inicial de parametros de hardware
 void setup()
 {
     Serial.begin(9600);
@@ -519,7 +604,8 @@ void setup()
     loadCell.begin(LoadCellDTPin, LoadCellSCKPin);
     Serial.println("Load cell initializing...");
 
-    while (!loadCell.is_ready()) {
+    while (!loadCell.is_ready()) 
+    {
         Serial.println("Waiting for load cell...");
         delay(TIMER_CELL);
     }
@@ -547,20 +633,18 @@ void setup()
     client.setCallback(MqttCallback);
 }
 
+// Hilo principal de ejecucion
 void loop()
 {
     // Lectura de sensores
-    potValue = analogRead(PotentiometerPin);
-    potValue2 = analogRead(PotentiometerPin2);
-    objectTime = readUltrasonicSensor();
+    potValue = analogRead(PotentiometerPin); // Agua
+    potValue2 = analogRead(PotentiometerPin2); // Peso / Potenciometro
+    objectDistance = readUltrasonicSensor(); // Distancia
     
     if ((millis() - timeCell) >= TIMER_CELL)
     {   
         readLoadCell();
     }
-    
-    // Ejecucion de calculos en base a sensores
-    performCalculations();
     
     // Reviso mensajes de Mqtt
     if (WiFi.status() == WL_CONNECTED)

@@ -53,8 +53,8 @@
     {
       "type": "wokwi-text",
       "id": "text4",
-      "top": -528,
-      "left": 48,
+      "top": -537.6,
+      "left": 19.2,
       "attrs": { "text": "servo 5v (500ma)" }
     },
     {
@@ -101,7 +101,8 @@
       "left": 386.6,
       "attrs": { "type": "5kg" }
     },
-    { "type": "wokwi-potentiometer", "id": "pot2", "top": -270.1, "left": 105.4, "attrs": {} }
+    { "type": "wokwi-potentiometer", "id": "pot2", "top": -270.1, "left": 105.4, "attrs": {} },
+    { "type": "wokwi-potentiometer", "id": "pot1", "top": -260.5, "left": 393.4, "attrs": {} }
   ],
   "connections": [
     [ "esp:TX0", "$serialMonitor:RX", "", [] ],
@@ -131,6 +132,7 @@
     [ "pot2:GND", "bb1:bn.16", "black", [ "v0" ] ],
     [ "pot2:VCC", "bb1:bp.18", "red", [ "v0" ] ],
     [ "pot2:SIG", "esp:D34", "blue", [ "v0" ] ],
+    [ "servo1:PWM", "esp:D5", "orange", [ "h0.2", "v364.8" ] ],
     [ "r1:1", "bb1:11t.d", "", [ "$bb" ] ],
     [ "r1:2", "bb1:17t.d", "", [ "$bb" ] ],
     [ "r2:1", "bb1:17t.b", "", [ "$bb" ] ],
@@ -146,7 +148,12 @@
     [ "pot2:GND", "bb1:21b.i", "", [ "$bb" ] ],
     [ "pot2:SIG", "bb1:22b.i", "", [ "$bb" ] ],
     [ "pot2:VCC", "bb1:23b.i", "", [ "$bb" ] ],
-    [ "servo1:PWM", "esp:D5", "orange", [ "h0.2", "v364.8" ] ]
+    [ "pot1:GND", "bb1:51b.j", "", [ "$bb" ] ],
+    [ "pot1:SIG", "bb1:52b.j", "", [ "$bb" ] ],
+    [ "pot1:VCC", "bb1:53b.j", "", [ "$bb" ] ],
+    [ "pot1:GND", "bb1:bn.41", "black", [ "v0" ] ],
+    [ "pot1:VCC", "bb1:bp.43", "red", [ "v0" ] ],
+    [ "pot1:SIG", "esp:D35", "green", [ "v153.6", "h-230.8" ] ]
   ],
   "dependencies": {}
 }
