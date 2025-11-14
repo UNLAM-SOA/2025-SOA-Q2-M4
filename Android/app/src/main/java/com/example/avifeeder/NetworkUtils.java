@@ -15,7 +15,7 @@ public class NetworkUtils {
 
         if (cm == null) return false;
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             Network network = cm.getActiveNetwork();
             if (network == null) return false;
 

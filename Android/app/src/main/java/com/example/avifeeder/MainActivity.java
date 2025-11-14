@@ -45,26 +45,27 @@ public class MainActivity extends AppCompatActivity {
             startActivity(intent);
         });
 
-        // Ajuste EdgeToEdge (opcional)
+        // Ajuste EdgeToEdge
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main), (v, insets) -> {
             Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
             return insets;
         });
 
-        // Inicializar el BroadcastReceiver antes de iniciar el servicio
+        // Inicializar el BroadcastReceiver antes de iniciar el servicio Mqtt
         mqttReceiver = new BroadcastReceiver() {
+            // Setea el metodo de recepcion de mensajes
             @Override
             public void onReceive(Context context, Intent intent) {
                 String message = intent.getStringExtra(MqttService.MQTT_MESSAGE_KEY);
                 Log.d(TAG, "Mensaje MQTT recibido. Actualizando UI");
                 if (message != null) {
-                    updateUIWithMqttData(message);
+                    updateUIWithMqttData(message); // Manejo del mensaje
                 }
             }
         };
 
-        // Registrar el receiver **en onCreate** para no perder mensajes
+        // Registrar el receiver (para no perder mensajes)
         String mqttBroadcastAction = getString(R.string.mqtt_message_broadcast);
         IntentFilter filter = new IntentFilter(mqttBroadcastAction);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -80,6 +81,7 @@ public class MainActivity extends AppCompatActivity {
         startService(mqttServiceIntent);
     }
 
+    // Destruccion del activity
     @Override
     protected void onDestroy() {
         super.onDestroy();
@@ -91,10 +93,11 @@ public class MainActivity extends AppCompatActivity {
         stopService(stopIntent);
     }
 
+    // Acutalizacion de la interfaz con la informacion recuperada de Mqtt
     private void updateUIWithMqttData(String message) {
         try {
+            // Levanta datos desde el JSON
             JSONObject json = new JSONObject(message);
-
             int potValue = json.optInt("PotValue", 0);
             int distance = json.optInt("Distance (cm)", 0);
             int timeLog  = json.optInt("TimeLog (s)", 0);

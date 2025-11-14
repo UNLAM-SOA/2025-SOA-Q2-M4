@@ -33,14 +33,17 @@ public class MqttService extends Service {
     @Override
     public void onCreate() {
         super.onCreate();
-        connectToBroker();
+        connectToBroker(); // Conexion a Broker
     }
 
+    // Conexion a Broker Mqtt
     private void connectToBroker() {
         try {
+            // Crea el obejeto de Mqtt
             String clientId = MqttClient.generateClientId();
             mqttClient = new MqttClient(BROKER_URL, clientId, null);
 
+            // Setea funciones de mensajes
             mqttClient.setCallback(new MqttCallback() {
                 @Override
                 public void connectionLost(Throwable cause) {
@@ -70,12 +73,15 @@ public class MqttService extends Service {
                 }
             });
 
+            // Setea los parametros de conexion
             MqttConnectOptions options = new MqttConnectOptions();
             options.setCleanSession(true);
 
+            // Conecta y suscribe a topic
             mqttClient.connect(options);
             mqttClient.subscribe(TOPIC, 0);
 
+            // Logs de app
             Log.i(TAG, "Conectado y suscrito al tópico: " + TOPIC);
             isReconnecting = false;
 
@@ -88,6 +94,7 @@ public class MqttService extends Service {
         }
     }
 
+    // Metod de reconexiones a Broker
     private void scheduleReconnect() {
         if (isReconnecting) return; // Evitar múltiples reconexiones simultáneas
         isReconnecting = true;
@@ -100,9 +107,7 @@ public class MqttService extends Service {
         }, RECONNECT_DELAY_MS);
     }
 
-    /**
-     * Publica un mensaje en el tópico configurado
-     */
+    // Publicacion de mensaje en el tópic
     public void publish(String message) {
         try {
             if (mqttClient != null && mqttClient.isConnected()) {
@@ -119,6 +124,7 @@ public class MqttService extends Service {
         }
     }
 
+    // Destruccion del objeto
     @Override
     public void onDestroy() {
         handler.removeCallbacksAndMessages(null);
@@ -135,6 +141,7 @@ public class MqttService extends Service {
         super.onDestroy();
     }
 
+    // Bindea el objeto -> para el activity
     public class LocalBinder extends Binder {
         public MqttService getService() {
             return MqttService.this;

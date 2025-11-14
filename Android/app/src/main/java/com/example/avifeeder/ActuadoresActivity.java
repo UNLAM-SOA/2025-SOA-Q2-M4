@@ -45,6 +45,7 @@ public class ActuadoresActivity extends AppCompatActivity implements NetworkChan
         EdgeToEdge.enable(this);
         setContentView(R.layout.activity_actuadores);
 
+        // Ajuste EdgeToEdge
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main), (v, insets) -> {
             Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
@@ -60,20 +61,22 @@ public class ActuadoresActivity extends AppCompatActivity implements NetworkChan
                 "Sin conexión a Internet",
                 Snackbar.LENGTH_INDEFINITE);
 
-        // Vincular botones del layout con acciones MQTT
+        // Setea botones del layout con acciones MQTT
         Button btnActivarLedComida = findViewById(R.id.btnActivarLedComida);
         Button btnDesactivarLedComida = findViewById(R.id.btnDesactivarLedComida);
         Button btnActivarLedAgua = findViewById(R.id.btnActivarLedAgua);
         Button btnDesactivarLedAgua = findViewById(R.id.btnDesactivarLedAgua);
 
-        // Asignar listeners
+        // Setea listeners
         btnActivarLedComida.setOnClickListener(v -> enviarComando("LED_COMIDA_ON"));
         btnDesactivarLedComida.setOnClickListener(v -> enviarComando("LED_COMIDA_OFF"));
         btnActivarLedAgua.setOnClickListener(v -> enviarComando("LED_AGUA_ON"));
         btnDesactivarLedAgua.setOnClickListener(v -> enviarComando("LED_AGUA_OFF"));
 
-        // Sensor de movimiento
+        // Setea el manejador de sensor
         sensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
+
+        // Instancia al dectecto de shake
         shakeDetector = new ShakeDetector(() -> {
             if (isBound && mqttService != null) {
                 mqttService.publish("LED_SHAKER");
@@ -99,7 +102,7 @@ public class ActuadoresActivity extends AppCompatActivity implements NetworkChan
         super.onStop();
         if (isBound) {
             unbindService(connection);
-            isBound = false;
+            isBound = false; // Desconecta el servicio Mqtt
         }
     }
 
@@ -107,13 +110,14 @@ public class ActuadoresActivity extends AppCompatActivity implements NetworkChan
     protected void onResume() {
         super.onResume();
 
+        // Setea al Acelerometro en el manejador de sensor
         Sensor accelerometer = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
         if (accelerometer != null) {
             sensorManager.registerListener(shakeDetector, accelerometer, SensorManager.SENSOR_DELAY_GAME);
         }
 
+        // Manejo de red
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            // Modo moderno: NetworkCallback
             ConnectivityManager cm = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
             NetworkRequest request = new NetworkRequest.Builder().build();
 
@@ -139,12 +143,15 @@ public class ActuadoresActivity extends AppCompatActivity implements NetworkChan
         onNetworkChange(connected);
     }
 
+    // Desvincula al detector de Shake y red
     @Override
     protected void onPause() {
         super.onPause();
 
+        // Shake
         sensorManager.unregisterListener(shakeDetector);
 
+        // Red
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && networkCallback != null) {
                 ConnectivityManager cm = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
@@ -158,7 +165,7 @@ public class ActuadoresActivity extends AppCompatActivity implements NetworkChan
             Log.e(TAG, "Error al desregistrar receptor de red", e);
         }
     }
-
+    
     @SuppressWarnings("deprecation")
     private void registerLegacyReceiver() {
         networkReceiver = new NetworkChangeReceiver(this);
@@ -194,7 +201,7 @@ public class ActuadoresActivity extends AppCompatActivity implements NetworkChan
         }
     };
 
-    // Metodo de ejemplo para publicar comandos MQTT
+    // Publica mensajes en el topic MQTT
     private void enviarComando(String comando) {
         if (isBound && mqttService != null) {
             mqttService.publish(comando);
