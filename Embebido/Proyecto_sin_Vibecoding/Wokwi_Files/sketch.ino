@@ -23,7 +23,7 @@
 #define PotentiometerPin 34
 #define PotentiometerPin2 35
 
-#define PotThreshold 1000
+#define PotThreshold 500
 #define DistanceThreshold 20
 
 #define TIMER_CELL 1000 //550ms 
@@ -71,21 +71,21 @@ const char* MqttMsgTy[] = { "LED_AGUA_OFF",
                             "LED_COMIDA_ON",
                             "LED_SHAKER" };
 
-int const ServoLowWeightPosition = 15;
-int const ServoNormalPosition = 0;
+int const ServoLowWeightPosition = 135;
+int const ServoNormalPosition = 120;
 int const mqtt_port = 1883;
 
 // Valores de ejecucion simulado - WiFi-Mqtt
 // const char* ssid = "Wokwi-GUEST";
 // const char* password = "";
-// const char* mqtt_server = "broker.hivemq.com";
-// const char* topicMqtt = "AviFeeder/Datos";
+const char* mqtt_server = "broker.hivemq.com";
+const char* topicMqtt = "AviFeeder/Datos";
 
 // Valores de ejecucion fisico - WiFi-Mqtt
 const char* ssid = "SO Avanzados";
 const char* password = "SOA.2019";
-const char* mqtt_server = "192.168.30.196";
-const char* topicMqtt = "AviFeeder/Datos";
+//const char* mqtt_server = "192.168.30.196";
+//const char* topicMqtt = "AviFeeder/Datos";
 
 float const calibration_factor = 420.0;
 
@@ -188,8 +188,8 @@ void sendMqttLogs(unsigned long* timeLogs)
         // Envia mensaje al topic
         if (client.publish(topicMqtt, message))
         {
-            // Serial.print("log: ");
-            // Serial.println(message);
+            Serial.print("log: ");
+            Serial.println(message);
         }
     }
 }
@@ -601,7 +601,8 @@ void setup()
     servo1.attach(ServoPin, 600, 2400);
     servo1.write(ServoNormalPosition);
 
-    loadCell.begin(LoadCellDTPin, LoadCellSCKPin);
+    // Celula de carga (deshabilitada)
+    /*loadCell.begin(LoadCellDTPin, LoadCellSCKPin);
     Serial.println("Load cell initializing...");
 
     while (!loadCell.is_ready()) 
@@ -617,7 +618,7 @@ void setup()
     Serial.println("Load cell tared and ready!");
 
     Serial.print("Current calibration factor: ");
-    Serial.println(calibration_factor);
+    Serial.println(calibration_factor);*/
 
     timeSinceBoot = timeCell = timeMqttLoop = millis();
     currentState = INIT;
