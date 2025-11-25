@@ -103,7 +103,7 @@ public class MainActivity extends AppCompatActivity {
             int timeLog  = json.optInt("TimeLog (s)", 0);
 
             // Evaluación para 'PotValue'
-            String potValueStatus = (potValue >= 2048) ? "SUFICIENTE" : "INSUFICIENTE";
+            String potValueStatus = (potValue >= 500) ? "SUFICIENTE" : "INSUFICIENTE";
 
             // Evaluación para 'Distance'
             String distanceStatus = (distance < 20) ? "SUFICIENTE" : "INSUFICIENTE";
