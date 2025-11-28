@@ -38,15 +38,12 @@ El sistema AviFeeder se compone de dos elementos principales:
 
 ## Funcionamiento General
 
-1. Al encender el bastón, todos los sensores y sistemas quedan habilitados.
-2. Se detectan obstáculos en tres direcciones: izquierda, derecha y frente.
+1. Al encender la pajarera, todos los sensores y sistemas quedan habilitados.
+2. Se miden los niveles de agua y comida respectivamente a traves de sus respectivos sensores.
 3. Se alerta al usuario mediante:
-   - Buzzer (con tonos distintos según cercanía)
-   - Motor vibrador (patrones distintos según dirección)
-   - Luces LED (verde para sistema activo, rojo para caída)
-4. Si el usuario suelta el bastón:
-   -	Se activa una alerta (buzzer + LED rojo).
-   -	Se notifica automáticamente a la aplicación SmartCane App con la ubicación del usuario.
+   - Luces LED (Encendido si falta agua o comida, apagado si se encuentran en niveles aceptables).
+   - Comunicacion con el smartphone asociado mediante el servidor MQTT.
+4. A traves del smartphone se pueden encender ambos LEDs, independientemente del estado actual de la pajarera
 
 ## Descripción de los Estados del Sistema AviFeeder
 
