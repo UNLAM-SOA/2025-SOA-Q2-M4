@@ -74,3 +74,4 @@ La app utiliza el protocolo MQTT para comunicación en tiempo real entre la paja
 -	**Android** (Java)
 
 # Prototipo realizado
+![AviFeeder Prototipo](https://github.com/UNLAM-SOA/2025-SOA-Q2-M4/blob/main/Prototipo%20Pajarera.png)
