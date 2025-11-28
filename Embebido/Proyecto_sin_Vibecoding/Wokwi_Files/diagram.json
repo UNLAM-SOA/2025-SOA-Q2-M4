@@ -15,7 +15,7 @@
     {
       "type": "wokwi-servo",
       "id": "servo1",
-      "top": -519.4,
+      "top": -557.8,
       "left": 88.2,
       "rotate": 270,
       "attrs": {}
@@ -53,8 +53,8 @@
     {
       "type": "wokwi-text",
       "id": "text4",
-      "top": -537.6,
-      "left": 19.2,
+      "top": -556.8,
+      "left": 0,
       "attrs": { "text": "servo 5v (500ma)" }
     },
     {
@@ -94,13 +94,6 @@
       "rotate": 270,
       "attrs": { "value": "100" }
     },
-    {
-      "type": "wokwi-hx711",
-      "id": "cell1",
-      "top": -35.8,
-      "left": 386.6,
-      "attrs": { "type": "5kg" }
-    },
     { "type": "wokwi-potentiometer", "id": "pot2", "top": -270.1, "left": 105.4, "attrs": {} },
     { "type": "wokwi-potentiometer", "id": "pot1", "top": -260.5, "left": 393.4, "attrs": {} }
   ],
@@ -109,7 +102,7 @@
     [ "esp:RX0", "$serialMonitor:TX", "", [] ],
     [ "r3:1", "led4:A", "green", [ "v0" ] ],
     [ "led4:C", "esp:GND.1", "green", [ "v138.64", "h-88.39", "v102.35", "h600.84", "v-182.05" ] ],
-    [ "esp:GND.1", "bb1:bn.49", "black", [ "h18.9", "v28.7", "h278.4", "v-201.6", "h-85.6" ] ],
+    [ "esp:GND.1", "bb1:bn.49", "black", [ "h210.9", "v-200.4" ] ],
     [ "bb1:bn.48", "bb1:tn.48", "black", [ "v0" ] ],
     [ "vcc2:VCC", "bb1:tp.1", "red", [ "v0" ] ],
     [ "gnd2:GND", "bb1:tn.1", "black", [ "v0" ] ],
@@ -121,10 +114,6 @@
     [ "bb1:38b.j", "bb1:bn.30", "black", [ "v0" ] ],
     [ "bb1:39t.e", "esp:D23", "gold", [ "v0" ] ],
     [ "bb1:43t.e", "esp:D22", "gold", [ "v0" ] ],
-    [ "cell1:GND", "bb1:bn.37", "black", [ "h0" ] ],
-    [ "cell1:VCC", "bb1:bp.36", "red", [ "h0" ] ],
-    [ "cell1:DT", "esp:TX2", "yellow", [ "h0" ] ],
-    [ "cell1:SCK", "esp:RX2", "yellow", [ "h0" ] ],
     [ "ultrasonic1:TRIG", "esp:D19", "purple", [ "v345.6", "h268.7" ] ],
     [ "bb1:tp.20", "servo1:V+", "red", [ "v0" ] ],
     [ "bb1:tn.19", "servo1:GND", "black", [ "v0" ] ],
@@ -132,7 +121,10 @@
     [ "pot2:GND", "bb1:bn.16", "black", [ "v0" ] ],
     [ "pot2:VCC", "bb1:bp.18", "red", [ "v0" ] ],
     [ "pot2:SIG", "esp:D34", "blue", [ "v0" ] ],
-    [ "servo1:PWM", "esp:D5", "orange", [ "h0.2", "v364.8" ] ],
+    [ "servo1:PWM", "esp:D5", "orange", [ "h0.2", "v403.2", "h115.5" ] ],
+    [ "pot1:GND", "bb1:bn.41", "black", [ "v0" ] ],
+    [ "pot1:VCC", "bb1:bp.43", "red", [ "v0" ] ],
+    [ "pot1:SIG", "esp:D35", "green", [ "v153.6", "h-230.8" ] ],
     [ "r1:1", "bb1:11t.d", "", [ "$bb" ] ],
     [ "r1:2", "bb1:17t.d", "", [ "$bb" ] ],
     [ "r2:1", "bb1:17t.b", "", [ "$bb" ] ],
@@ -150,10 +142,7 @@
     [ "pot2:VCC", "bb1:23b.i", "", [ "$bb" ] ],
     [ "pot1:GND", "bb1:51b.j", "", [ "$bb" ] ],
     [ "pot1:SIG", "bb1:52b.j", "", [ "$bb" ] ],
-    [ "pot1:VCC", "bb1:53b.j", "", [ "$bb" ] ],
-    [ "pot1:GND", "bb1:bn.41", "black", [ "v0" ] ],
-    [ "pot1:VCC", "bb1:bp.43", "red", [ "v0" ] ],
-    [ "pot1:SIG", "esp:D35", "green", [ "v153.6", "h-230.8" ] ]
+    [ "pot1:VCC", "bb1:53b.j", "", [ "$bb" ] ]
   ],
   "dependencies": {}
 }

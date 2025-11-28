@@ -1,5 +1,4 @@
 #include <ESP32Servo.h> // by Kevin Harrington and John K. Bennett
-#include <HX711.h> // by Rob Tillaart <rob.tillaart@gmail.com
 #include <freertos/FreeRTOS.h> // native from arduino
 #include <freertos/task.h> // native from arduino
 #include <WiFi.h> // native from arduino
@@ -15,8 +14,6 @@
 #define LedPinWaterChannel 6
 #define LedPinFoodChannel 7
 
-#define LoadCellDTPin 17
-#define LoadCellSCKPin 16
 #define TriggerPin 19
 #define EchoPin 18
 #define ServoPin 5
@@ -26,7 +23,6 @@
 #define PotThreshold 500
 #define DistanceThreshold 20
 
-#define TIMER_CELL 1000 //550ms 
 #define TIMER_INIT 300 //300ms
 #define TIMER_LOGS 1000 //1000ms = 1s
 #define TIMER_MQTT 50 //50ms
@@ -40,8 +36,8 @@
 enum States
 {
     INIT = 1,
-    SENSING = 2,
-    LOAD_CELL = 3
+    SERVO_OPEN = 2,
+    SERVO_CLOSE = 3
 };
 
 enum Events
@@ -76,16 +72,10 @@ int const ServoNormalPosition = 120;
 int const mqtt_port = 1883;
 
 // Valores de ejecucion simulado - WiFi-Mqtt
-// const char* ssid = "Wokwi-GUEST";
-// const char* password = "";
+const char* ssid = "Wokwi-GUEST";
+const char* password = "";
 const char* mqtt_server = "broker.hivemq.com";
 const char* topicMqtt = "AviFeeder/Datos";
-
-// Valores de ejecucion fisico - WiFi-Mqtt
-const char* ssid = "SO Avanzados";
-const char* password = "SOA.2019";
-//const char* mqtt_server = "192.168.30.196";
-//const char* topicMqtt = "AviFeeder/Datos";
 
 float const calibration_factor = 420.0;
 
@@ -98,18 +88,15 @@ int servoAngle = 0;
 int waterLed = 0;
 int ultraLed = 0;
 int ServoChk = 0;
-int potValue2 = 0;
 
 float weight = 0.0;
 
 char MqttMessage[20];
 
 unsigned long timeSinceBoot;
-unsigned long timeCell;
 unsigned long timeMqttLoop;
 
 Servo servo1;
-HX711 loadCell;
 
 WiFiClient espClient;
 PubSubClient client(espClient);
@@ -117,20 +104,6 @@ PubSubClient client(espClient);
 static TaskHandle_t ServoHandler = NULL;
 static TaskHandle_t MqttHandler = NULL;
 static QueueHandle_t ServoQueue;
-
-/**************************************************************
-
-INDICE
-
-136. Funciones de tareas concurrentes
-211. Tareas concurrentes
-260. Lectura de sensores
-308. Get de eventos
-379. Resolucion de eventos
-516. Manejo de estados
-593. Funciones de sistema
-
-**************************************************************/
 
 /*************************************************************/
 /*            Funciones de tareas concurrentes               */
@@ -279,31 +252,6 @@ long readUltrasonicSensor()
     return distance;
 }
 
-// Lectura de la celular de carga (potenciometro)
-void readLoadCell()
-{
-    // Lectura de peso
-    /*
-    timeCell = millis();
-
-    if (loadCell.is_ready())
-    {
-        weight = loadCell.get_units(5);
-        if (weight < 0)
-        {
-            weight = 0;
-        }
-    }
-    */
-
-    // Paso de potenciometro a equivalencia de peso
-    weight = potValue2;
-    if (weight < 0)
-    {
-        weight = 0;
-    }
-}
-
 /*************************************************************/
 /*                       Get de eventos                      */
 /*************************************************************/
@@ -359,6 +307,11 @@ void getMqtt()
 // Evaluacion de eventos
 void getEvent()
 {
+    // Lectura de sensores
+    potValue = analogRead(PotentiometerPin); // Agua
+    weight = analogRead(PotentiometerPin2); // Peso
+    objectDistance = readUltrasonicSensor(); // Distancia
+
     // Evento por defecto
     currentEvent = NO_EVENT;
 
@@ -494,12 +447,12 @@ void solveEvent()
 
         case NO_FOOD:
             ServoChk = true;
-            foodEvent(LOAD_CELL, servoAngle);
+            foodEvent(SERVO_CLOSE, servoAngle);
             break;
         
         case FOOD_OK:
             ServoChk = false;
-            foodEvent(SENSING, servoAngle);
+            foodEvent(SERVO_OPEN, servoAngle);
             break;
         
         case MQTT_MSG:
@@ -555,7 +508,7 @@ void initSignal()
     // Creo la tarea de MqTT aca porque necesita internet
     xTaskCreatePinnedToCore(concurrentSendByMqtt,"concurrent_mqtt_task_s",TAM_PILA_MQTT, NULL, 1, &MqttHandler, 1);
 
-    currentState = SENSING;
+    currentState = SERVO_OPEN;
 }
 
 // Maquina de estados
@@ -571,13 +524,13 @@ void stateMachine()
         initSignal();
         break;
     
-    case SENSING:
+    case SERVO_OPEN:
         // Seteo el angulo del servo para cuando corresponda abrirlo
         servoAngle = ServoLowWeightPosition;
         solveEvent();
         break;
     
-    case LOAD_CELL:
+    case SERVO_CLOSE:
         // Seteo el angulo del servo para cuando corresponda cerrarlo
         servoAngle = ServoNormalPosition;
         solveEvent();
@@ -601,26 +554,7 @@ void setup()
     servo1.attach(ServoPin, 600, 2400);
     servo1.write(ServoNormalPosition);
 
-    // Celula de carga (deshabilitada)
-    /*loadCell.begin(LoadCellDTPin, LoadCellSCKPin);
-    Serial.println("Load cell initializing...");
-
-    while (!loadCell.is_ready()) 
-    {
-        Serial.println("Waiting for load cell...");
-        delay(TIMER_CELL);
-    }
-
-    loadCell.set_scale(calibration_factor);
-
-    loadCell.tare(10);
-
-    Serial.println("Load cell tared and ready!");
-
-    Serial.print("Current calibration factor: ");
-    Serial.println(calibration_factor);*/
-
-    timeSinceBoot = timeCell = timeMqttLoop = millis();
+    timeSinceBoot = timeMqttLoop = millis();
     currentState = INIT;
     pinMode(TriggerPin, OUTPUT);
     pinMode(EchoPin, INPUT);
@@ -636,17 +570,7 @@ void setup()
 
 // Hilo principal de ejecucion
 void loop()
-{
-    // Lectura de sensores
-    potValue = analogRead(PotentiometerPin); // Agua
-    potValue2 = analogRead(PotentiometerPin2); // Peso / Potenciometro
-    objectDistance = readUltrasonicSensor(); // Distancia
-    
-    if ((millis() - timeCell) >= TIMER_CELL)
-    {   
-        readLoadCell();
-    }
-    
+{    
     // Reviso mensajes de Mqtt
     if (WiFi.status() == WL_CONNECTED)
     {
