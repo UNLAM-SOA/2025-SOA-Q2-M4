@@ -321,7 +321,7 @@ void getEvent()
     // Evaluo eventos segun sensor de ultrasonido
     getUltra();
 
-    // Evaluo eventos segun celular de carga
+    // Evaluo eventos segun potenciometro
     getServo();
 
     // Evaluo eventos segun Mqtt
